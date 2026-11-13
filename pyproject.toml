@@ -13,10 +13,8 @@ dependencies = [
     "matplotlib>=3.11.2",
     "ipykernel>=7.4.0",
     "bondi==0.3.0",
+    "faker==38.3.0",
 ]
-
-[project.scripts]
-json-bench = "json_bench._cli:main"
 
 [build-system]
 requires = ["hatchling>=1.26"]

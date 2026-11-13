@@ -4,8 +4,7 @@ A document database benchmark built on BONDI 0.3.0.
 
 This initial checkout uses the clean
 [bondi-empty-project](https://github.com/relaxed-constraints/bondi-empty-project)
-starter at commit `25aec38`. It retains the greeting examples while the benchmark
-components are developed.
+starter at commit `25aec38`. Benchmark components are added in small, tested steps.
 
 It builds on the following dependencies and tools:
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) a Python project management tool
@@ -93,12 +92,12 @@ provides a slide preview and export commands. Start with the example deck in
 | Directory | Purpose |
 | --- | --- |
 | `docs/` | Space for project notes and instructions. |
-| `experiments/` | Yanex scripts; `greet.py` calls the greeting helper and logs a metric. |
-| `experiments/configs/` | YAML parameters; `config.yaml` contains `name`. |
-| `notebooks/` | Examples calling the helper and plotting a small table with pandas and Matplotlib. |
+| `experiments/` | Future Yanex experiment scripts. |
+| `experiments/configs/` | Future experiment parameters. |
+| `notebooks/` | Future analysis notebooks. |
 | `results/` | Use this directory to store experiment results and create progress update slides. |
-| `src/json_bench/` | Reusable Python code goes here, replacing the `hello.py` stub. |
-| `tests/` | A unit test checking the greeting printed by `hello_world()`. |
+| `src/json_bench/` | Travel data generation. |
+| `tests/` | JSONBench compatibility and data-generation tests. |
 
 
 ## Setup
@@ -124,49 +123,23 @@ uv run ruff format   # formats the code according to the linter rules
 ```
 
 
-## Run the experiment
+## Generate travel data
 
-Activate the virtual environment and change into the experiment directory.
+```python
+from json_bench.data import generate_travel_dataset
 
-```sh
-source .venv/bin/activate
-cd experiments
+dataset = generate_travel_dataset(
+    scale=0.01,
+    seed=23,
+    reference_date="2025-11-01",
+)
+print({name: len(documents) for name, documents in dataset.items()})
+# {'users': 10, 'tours': 2, 'bookings': 50, 'reviews': 25}
 ```
 
-Then run the experiment with
-```sh
-yanex run greet.py -c configs/config.yaml
-```
-
-You can also override the default name with the `-p` (short for `--param`) flag, for example:
-
-```sh
-yanex run greet.py -c configs/config.yaml -p name=Student
-```
-
-The experiment prints a greeting and records the `name_length` metric. Yanex
-prints the experiment ID; inspect it with `yanex show <experiment-id>`.
-Without a config file, the name defaults to `World`.
-
-## Use the notebook
-
-Open `notebooks/hello.ipynb` in VS Code with its Jupyter extension and select
-this project's `.venv/bin/python` as the kernel. Run the greeting cell, then the small pandas/Matplotlib plotting example.
-
-## Run the CLI
-
-This project includes a stub command-line interface that you can extend for your own purposes.
-Its command is `json-bench`, backed by `json_bench._cli`.
-
-```sh
-uv run json-bench
-uv run json-bench --name Student
-uv run json-bench --help
-```
-
-The CLI prints `Hello, World` by default, or greets the supplied name. Extend
-`src/json_bench/_cli.py` to add arguments using Python's `argparse` module.
-
+The function returns Python dictionaries in memory. It does not write files or
+connect to a database. See the [data generation guide](docs/data.md) for the API
+and compatibility rules.
 
 ## Progress updates
 
@@ -176,9 +149,8 @@ to preview and export it. Replace the demo title and examples with your own work
 
 ## Next steps
 
-This is the renamed starter, with BONDI pinned to 0.3.0. The greeting code,
-experiment, notebook and slides are examples. Benchmark components will be added
-in later steps.
+BONDI is pinned to 0.3.0. Database loading, experiment scripts and query
+translation will be added separately.
 
 ## License
 

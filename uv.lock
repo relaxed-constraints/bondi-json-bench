@@ -277,6 +277,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "bondi" },
+    { name = "faker" },
     { name = "huggingface-hub" },
     { name = "ipykernel" },
     { name = "matplotlib" },
@@ -294,6 +295,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bondi", specifier = "==0.3.0" },
+    { name = "faker", specifier = "==38.3.0" },
     { name = "huggingface-hub", specifier = ">=0.30,<2" },
     { name = "ipykernel", specifier = ">=7.4.0" },
     { name = "matplotlib", specifier = ">=3.11.2" },
@@ -881,6 +883,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/52/92/8a611141e42930c0f194f7504063ab87dfe970cf1a5af28e7703df448734/executing-2.3.0.tar.gz", hash = "sha256:15919cb5d667e5cb4e099511971d00d659573fff2dd5c4e6cd8b71636c7858d2", size = 1338003 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/dd/8bc67e7d5ffc1d88aa5af511189dfb76dc4e1e5b808fab186146ef2663e5/executing-2.3.0-py3-none-any.whl", hash = "sha256:736e859c9f8701f11fcf516856f26f562e04776387824b43a35a1dfe21c84122", size = 29393 },
+]
+
+[[package]]
+name = "faker"
+version = "38.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c5/29/ccf9b7b64d461a4fd6ad92b311c5b386c443c9a061cc55bf5cdc7cccd0f7/faker-38.3.0.tar.gz", hash = "sha256:4997de214510db9328ed83b9591891c66e91d7e9a903e5744e0255a68f51ac16", size = 1942020 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/42/2e/941eb5290764e3f5de735ef7d365ac8e729d0d0c8f9f93d74bd7f854459c/faker-38.3.0-py3-none-any.whl", hash = "sha256:b5499b6f2d090dec9b90ded8eae6a27daed10fda3e0dba7a182bb2be8a4d4a6b", size = 1980800 },
 ]
 
 [[package]]

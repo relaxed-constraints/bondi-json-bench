@@ -1,0 +1,83 @@
+{
+  "source": "JSONBench/jsonbench/data_generator/data_generator.py",
+  "source_commit": "653367ce7e41d866489bae504fe963f8ee0d6758",
+  "source_sha256": "23c5abb0afa6a1abc75a4381d2d902a2c1921585e6d175ca76283409972d6568",
+  "faker_version": "38.3.0",
+  "cases": [
+    {
+      "inputs": {
+        "scale": 0.01,
+        "seed": 23,
+        "reference_date": "2025-11-01"
+      },
+      "collections": {
+        "users": {
+          "count": 10,
+          "sha256": "bf243483343e76c02b2677a9f2314873d79f1297939c94e7ec385a7de8fd9dc1"
+        },
+        "tours": {
+          "count": 2,
+          "sha256": "67048b09b62c349f7d57c2f6dd4aad6bffbf546aa802df0487675e2656258c74"
+        },
+        "bookings": {
+          "count": 50,
+          "sha256": "a287756392245c8882e7b17255bf404611984f1de6a15059ab4d7b20f218581b"
+        },
+        "reviews": {
+          "count": 25,
+          "sha256": "1d7f68c2ffc4283503a063a5827f5c5e7b570ad8e930532e1f5e60b73c844f9c"
+        }
+      }
+    },
+    {
+      "inputs": {
+        "scale": 0.015,
+        "seed": 0,
+        "reference_date": "2024-02-29"
+      },
+      "collections": {
+        "users": {
+          "count": 15,
+          "sha256": "f7dd4b99fda69c4b387692260ce7e687e84dc6ec31d464fd706ee6cc3ef49949"
+        },
+        "tours": {
+          "count": 3,
+          "sha256": "ed4f1c39f84d61ec106f7ab5dcf2a165ed7169c935cabb06a184f0bb6a17b4d0"
+        },
+        "bookings": {
+          "count": 75,
+          "sha256": "abfc9eeb74f89fbab7012a31d710397478ea24be044a0810077989045a2f42d9"
+        },
+        "reviews": {
+          "count": 37,
+          "sha256": "8cbc219b3b08dc4dc12d57e912f855ed51542dc83869fc42eed211291025268f"
+        }
+      }
+    },
+    {
+      "inputs": {
+        "scale": 0.1,
+        "seed": 42,
+        "reference_date": "2026-11-13"
+      },
+      "collections": {
+        "users": {
+          "count": 100,
+          "sha256": "ffc401eeba86a50b0bef4355d4a501184c61ed3e473238efdb3bdb1924b6c96e"
+        },
+        "tours": {
+          "count": 20,
+          "sha256": "d2612893102eab60c18abbbc67665a7478f4e1e29a90f758f08f76f289038fdc"
+        },
+        "bookings": {
+          "count": 500,
+          "sha256": "8a19a658d6de9c870157ce0aeafcd053773adafe3a097e8ffb4a5c00b390843d"
+        },
+        "reviews": {
+          "count": 250,
+          "sha256": "d0b2e37f9d6116a19b8145cceb96d8d17aa7cf0d89fcb3a759219dcf8133addc"
+        }
+      }
+    }
+  ]
+}
