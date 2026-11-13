@@ -1,4 +1,4 @@
-"""Translate the Q1–Q5 grouping subset into native BONDI query objects."""
+"""Translate the Q1–Q6 grouping subset into native BONDI query objects."""
 
 import json
 import math
@@ -145,12 +145,12 @@ def _group(template):
         raise ValueError("Only group and optional join/unnest/match operations are supported")
     unnests = _unnests(operations, primary)
 
-    # This first subset accepts one grouping field, not a list or dotted path.
+    # Accept one grouping path. Compound grouping remains unsupported.
     group = operations["group"]
     if not isinstance(group, dict) or set(group) != {"by", "aggregates"}:
         raise ValueError("group requires by and aggregates")
 
-    by = _identifier(group["by"], "group.by")
+    by = _path(group["by"])
     aggregates = group["aggregates"]
     if not isinstance(aggregates, dict) or not aggregates:
         raise ValueError("group.aggregates must be a nonempty dictionary")
@@ -159,7 +159,7 @@ def _group(template):
     expressions = {}
     for alias, expr in aggregates.items():
         _identifier(alias, "Aggregate alias")
-        if alias in {by, "_id"}:
+        if alias in {by.replace(".", "_"), "_id"}:
             raise ValueError("Aggregate alias must not collide with the group field or _id")
 
         expressions[alias] = _expression(expr)
@@ -171,7 +171,7 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     """Translate grouping, array expansion and aggregates into a MongoDB aggregation.
 
     Args:
-        template: Original JSONBench template. Supports group and optional join/unnest/match, one simple
+        template: Original JSONBench template. Supports group and optional join/unnest/match, one simple or dotted
             grouping field, and sum/avg/min/max over field paths or size(field), plus count(*).
         database: MongoDB database name, expressed as a simple identifier.
 
@@ -197,7 +197,8 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
         return {"$" + operator: compile_node(argument)}
 
     # MongoDB stores the grouping key in _id.
-    group_stage = {"_id": "$" + by}
+    group_key = {by.replace(".", "_"): "$" + by} if "." in by else "$" + by
+    group_stage = {"_id": group_key}
     for alias, expression in expressions.items():
         group_stage[alias] = compile_node(expression)
 
@@ -278,7 +279,8 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
         function = "ARRAY_LENGTH" if operator == "size" else operator.upper()
         return f"{function}({compile_node(argument)})"
 
-    fields = [f"{resolve(by)} AS {quoted(by)}"]
+    group_alias = by.replace(".", "_")
+    fields = [f"{resolve(by)} AS {quoted(group_alias)}"]
     for alias, expression in expressions.items():
         fields.append(f"{compile_node(expression)} AS {quoted(alias)}")
 

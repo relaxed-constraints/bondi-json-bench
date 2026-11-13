@@ -53,7 +53,7 @@ def test_destination_does_not_rewrite_statement(template):
         lambda q: q["operations"].update({"match": {"paid": None}}),
         lambda q: q["operations"].update({"join": {}}),
         lambda q: q["operations"]["group"].update({"by": ["tour_id"]}),
-        lambda q: q["operations"]["group"].update({"by": "tour._id"}),
+        lambda q: q["operations"]["group"].update({"by": "tour.._id"}),
         lambda q: q["operations"]["group"].update({"aggregates": {}}),
         lambda q: q["operations"]["group"].update({"aggregates": {"total": "count(total_price)"}}),
         lambda q: q["operations"]["group"].update(
@@ -370,3 +370,40 @@ def test_join_precedes_expansion_and_filter():
     )
     assert "WHERE `reviews`.`rating` = 5" in statement
     assert "META(" not in statement
+
+
+Q6 = json.loads((Path(__file__).parent / "fixtures" / "q6_translation.json").read_text())
+
+
+def test_q6_matches_corrected_jsonbench():
+    template = copy.deepcopy(Q6["template"])
+    mongo = translate_mongodb(template, database="travel")
+    couch = translate_couchbase(template, bucket="travel")
+    assert mongo.pipeline == Q6["mongodb_pipeline"]
+    assert mongo.target == MongoCollectionRef("travel", "bookings")
+    assert couch.statement == Q6["couchbase_statement"]
+    assert couch.query_context == "default:`travel`.`_default`"
+    assert template == Q6["template"]
+    assert MongoAggregateQuery.from_json(mongo.to_json()) == mongo
+    assert CouchbaseQuery.from_json(couch.to_json()) == couch
+
+
+def test_dotted_group_alias_collision():
+    template = copy.deepcopy(Q6["template"])
+    template["operations"]["group"]["aggregates"] = {"tours_destination": "avg(travellers.age)"}
+    for translate, target in [
+        (translate_mongodb, {"database": "travel"}),
+        (translate_couchbase, {"bucket": "travel"}),
+    ]:
+        with pytest.raises(ValueError, match="collide"):
+            translate(template, **target)
+
+
+def test_dotted_group_on_primary_collection(template):
+    template["operations"]["group"]["by"] = "details.region"
+    assert translate_mongodb(template, database="travel").pipeline[0]["$group"]["_id"] == {
+        "details_region": "$details.region"
+    }
+    statement = translate_couchbase(template, bucket="travel").statement
+    assert "`bookings`.`details`.`region` AS `details_region`" in statement
+    assert statement.endswith("GROUP BY `bookings`.`details`.`region`;")

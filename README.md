@@ -145,7 +145,7 @@ and compatibility rules.
 
 Use `translate_mongodb()` and `translate_couchbase()` from `json_bench.queries`
 to produce native BONDI query objects. See the [translation guide](docs/queries.md).
-Q1–Q5 are supported: joins, grouping, array expansion, equality filters, row counts,
+Q1–Q6 are supported: joins, grouping, array expansion, equality filters, row counts,
 and sum/average/minimum/maximum aggregates over fields or array lengths. The walkthrough runs both queries as BONDI workloads and compares results.
 
 ## Walkthrough notebook
@@ -164,7 +164,7 @@ to preview and export it. Replace the demo title and examples with your own work
 
 ## Next steps
 
-BONDI is pinned to 0.3.0. Experiment scripts and translation beyond Q5 will be added
+BONDI is pinned to 0.3.0. Experiment scripts and translation beyond Q6 will be added
 separately. The walkthrough already demonstrates loading into both databases.
 
 ## License

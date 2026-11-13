@@ -4,7 +4,7 @@ Translate a JSONBench template into native BONDI query objects. The supported te
 (average, minimum and maximum traveller age per tour), plus Q3
 (average traveller group size per booking, grouped by tour), and Q4
 (itinerary visits to a location, grouped by difficulty), plus Q5
-(average review rating per tour).
+(average review rating per tour), and Q6 (average traveller age per destination).
 Translation does not connect to a database, execute queries or create indexes.
 
 ```python
@@ -37,7 +37,7 @@ The template supplies the collection name. The other arguments supply its databa
 or bucket and scope. Each call returns a fresh BONDI object and leaves the template
 unchanged. Name and description are metadata and do not change the query.
 
-Use `group` with one simple field name for `by`. Aggregates support `sum`, `avg`,
+Use `group` with one simple or dotted field path for `by`. Aggregates support `sum`, `avg`,
 `min` and `max` over simple or dotted field paths, or `size(field)`. Add an optional `unnest` list
 before grouping. Each item is a path or `{"field": "travellers", "from": "bookings"}`.
 The optional `from` must name the primary collection. Each identifier component
@@ -46,7 +46,7 @@ Equality filters use `match`, a mapping from field paths to non-null scalar valu
 Multiple predicates are combined with AND. Numbers must be finite.
 Use `count(*)` to count rows after array expansion and filtering.
 Other filters, sorting, limits, compound grouping and nested functions other than `size(field)` remain unsupported.
-An aggregate alias cannot equal `_id` or the grouping field.
+An aggregate alias cannot equal `_id` or the grouping output alias.
 
 Unsupported values raise `ValueError`. A non-dictionary template or non-string
 aggregate expression raises `TypeError`. Unsupported operations are never ignored.
@@ -76,13 +76,13 @@ MongoDB names the grouping field `_id`; Couchbase names it `tour_id`.
 
 ## Compatibility checks
 
-`tests/fixtures/q1_translation.json` `q2_translation.json` `q3_translation.json` `q4_translation.json` and `q5_translation.json` contain outputs captured from the
+`tests/fixtures/q1_translation.json` `q2_translation.json` `q3_translation.json` `q4_translation.json` `q5_translation.json` and `q6_translation.json` contain outputs captured from the
 corrected JSONBench translators. Each fixture records the source commit and file checksums.
 Tests compare the entire pipeline and SQL++ statement, plus BONDI destination metadata.
 They need no JSONBench checkout at runtime.
 
 These tests establish translation compatibility. The
-[walkthrough](../notebooks/walkthrough.ipynb) executes Q1–Q5 as one BONDI workload per backend
+[walkthrough](../notebooks/walkthrough.ipynb) executes Q1–Q6 as one BONDI workload per backend
 and compares tour IDs and aggregate values, ignoring row order. It uses relative tolerance
 1e-9 and absolute tolerance 1e-6 for floating-point sums.
 
@@ -168,3 +168,16 @@ and checks expected averages in both databases. The fixture includes multiple
 reviews, a tour without reviews and a review without a matching tour. The test
 removes its deployments afterward. Docker must be running, and ports 27137,
 18391, 18393 and 21330 must be free.
+
+## Q6: traveller age per destination
+
+Q6 joins bookings to tours, expands travellers, and groups by `tours.destination`.
+Each traveller in each matching booking contributes to the average age.
+This is not an average of tour averages and does not deduplicate travellers.
+
+For dotted grouping paths, MongoDB returns a nested key, such as
+`{"_id": {"tours_destination": "Sydney"}, "avg_age": 35}`.
+Couchbase returns `{"tours_destination": "Sydney", "avg_age": 35}`.
+Dots become underscores in the output alias, as in corrected JSONBench.
+An aggregate alias must not collide with that output alias.
+The notebook normalises these grouping keys before comparing results.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add Q6 dotted grouping paths with original MongoDB and Couchbase output shapes.
+  Extend reference tests, documentation and notebook workload comparisons.
+
 - Add Q5 joins with corrected JSONBench reference tests. Run Q1–Q5 in the
   walkthrough and compare review averages across both databases.
 
