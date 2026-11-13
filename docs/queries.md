@@ -73,6 +73,11 @@ corrected JSONBench translators. It records the source commit and file checksums
 Tests compare the entire pipeline and SQL++ statement, plus BONDI destination metadata.
 They need no JSONBench checkout at runtime.
 
-These tests establish translation compatibility. Live result equivalence and
-benchmark performance comparisons are separate next steps.
-See the [walkthrough](../notebooks/walkthrough.ipynb) to inspect both query objects.
+These tests establish translation compatibility. The
+[walkthrough](../notebooks/walkthrough.ipynb) also executes Q1 on both databases
+and compares tour IDs and sums, ignoring row order. It uses relative tolerance
+1e-9 and absolute tolerance 1e-6 for floating-point sums.
+
+The walkthrough creates the original Couchbase bookings index and uses
+REQUEST_PLUS consistency to include newly loaded data. This is a correctness
+check, not a benchmark run. Performance comparisons remain a separate step.

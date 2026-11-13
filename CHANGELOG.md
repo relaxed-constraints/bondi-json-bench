@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add live Q1 execution and result comparison to the walkthrough, with the original
+  Couchbase bookings index and explicit index consistency for correctness checks.
+
 - Add Q1 MongoDB and Couchbase translation functions returning BONDI query objects.
   Test exact compatibility with corrected JSONBench output and reject unsupported
   operations. Add API documentation and a non-executing walkthrough example.
