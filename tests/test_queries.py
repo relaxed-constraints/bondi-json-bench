@@ -55,7 +55,7 @@ def test_destination_does_not_rewrite_statement(template):
         lambda q: q["operations"]["group"].update({"by": ["tour_id"]}),
         lambda q: q["operations"]["group"].update({"by": "tour._id"}),
         lambda q: q["operations"]["group"].update({"aggregates": {}}),
-        lambda q: q["operations"]["group"].update({"aggregates": {"total": "avg(total_price)"}}),
+        lambda q: q["operations"]["group"].update({"aggregates": {"total": "count(*)"}}),
         lambda q: q["operations"]["group"].update(
             {"aggregates": {"total": "sum(size(travellers))"}}
         ),
@@ -104,3 +104,62 @@ def test_bondi_serialization_round_trip(template):
     couch = translate_couchbase(template, bucket="travel")
     assert MongoAggregateQuery.from_json(mongo.to_json()) == mongo
     assert CouchbaseQuery.from_json(couch.to_json()) == couch
+
+
+Q2 = json.loads((Path(__file__).parent / "fixtures" / "q2_translation.json").read_text())
+
+
+def test_q2_matches_corrected_jsonbench():
+    template = copy.deepcopy(Q2["template"])
+    assert translate_mongodb(template, database="travel").pipeline == Q2["mongodb_pipeline"]
+    query = translate_couchbase(template, bucket="travel")
+    assert query.statement == Q2["couchbase_statement"]
+    assert query.query_context == "default:`travel`.`_default`"
+    assert template == Q2["template"]
+
+
+def test_string_unnest_matches_dictionary_form():
+    template = copy.deepcopy(Q2["template"])
+    template["operations"]["unnest"] = ["travellers"]
+    assert translate_mongodb(template, database="travel").pipeline == Q2["mongodb_pipeline"]
+    assert translate_couchbase(template, bucket="travel").statement == Q2["couchbase_statement"]
+
+
+@pytest.mark.parametrize(
+    "unnest",
+    [
+        "travellers",
+        [None],
+        [{}],
+        [{"field": "travellers", "from": "users"}],
+        ["travellers..age"],
+        [{"field": "travellers", "extra": True}],
+    ],
+)
+@pytest.mark.parametrize("backend", ["mongodb", "couchbase"])
+def test_invalid_unnest(unnest, backend):
+    template = copy.deepcopy(Q2["template"])
+    template["operations"]["unnest"] = unnest
+    with pytest.raises(ValueError):
+        if backend == "mongodb":
+            translate_mongodb(template, database="travel")
+        else:
+            translate_couchbase(template, bucket="travel")
+
+
+def test_nested_unnest_resolves_aliases_in_order():
+    template = copy.deepcopy(Q2["template"])
+    template["operations"]["unnest"].append("travellers.children")
+    template["operations"]["group"]["aggregates"] = {"age": " AVG( travellers.children.age ) "}
+    mongo = translate_mongodb(template, database="travel")
+    assert mongo.pipeline[:2] == [{"$unwind": "$travellers"}, {"$unwind": "$travellers.children"}]
+    couch = translate_couchbase(template, bucket="travel").statement
+    assert "AVG(`__unnest_1`.`age`)" in couch
+    assert "UNNEST `__unnest_0`.`children` AS `__unnest_1`" in couch
+
+
+def test_unnest_alias_does_not_collide_with_collection():
+    template = copy.deepcopy(Q2["template"])
+    template["primary_collection"] = "__unnest_0"
+    template["operations"]["unnest"] = ["travellers"]
+    assert "AVG(`__unnest_0_`.`age`)" in translate_couchbase(template, bucket="travel").statement

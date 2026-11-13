@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Support Q2 array expansion, nested fields and average/minimum/maximum aggregates.
+  Preserve corrected JSONBench output and run Q1/Q2 as BONDI workloads in the walkthrough.
+
 - Add live Q1 execution and result comparison to the walkthrough, with the original
   Couchbase bookings index and explicit index consistency for correctness checks.
 

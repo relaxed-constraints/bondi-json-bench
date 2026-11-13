@@ -1,0 +1,50 @@
+{
+  "source_commit": "653367ce7e41d866489bae504fe963f8ee0d6758",
+  "source_sha256": {
+    "jsonbench/src/queries.json": "4812e86c309a8a517dd6522f7d6a97ae6052b4222e7e541bd9064376ee160aec",
+    "jsonbench/query_generator/template.py": "57d291b68929b61e4166653a6f9a683b215eabe4aaa34154df9c7ecd27bd02c9",
+    "jsonbench/query_generator/mdb_query_gen.py": "8c754c31ffcb28d3c3dbadf9cd4b26bcd8d7ea38568fe9a87f5719b8092194a3",
+    "jsonbench/query_generator/cb_query_gen.py": "e263966dda6b2877f012ec0eff53e521ace6e95d15f2001282c650de34d86cb7"
+  },
+  "template": {
+    "name": "Query 2",
+    "description": "Traveller age distribution for each tour",
+    "primary_collection": "bookings",
+    "operations": {
+      "unnest": [
+        {
+          "field": "travellers",
+          "from": "bookings"
+        }
+      ],
+      "group": {
+        "by": "tour_id",
+        "aggregates": {
+          "avg_age": "avg(travellers.age)",
+          "min_age": "min(travellers.age)",
+          "max_age": "max(travellers.age)"
+        }
+      }
+    }
+  },
+  "mongodb_pipeline": [
+    {
+      "$unwind": "$travellers"
+    },
+    {
+      "$group": {
+        "_id": "$tour_id",
+        "avg_age": {
+          "$avg": "$travellers.age"
+        },
+        "min_age": {
+          "$min": "$travellers.age"
+        },
+        "max_age": {
+          "$max": "$travellers.age"
+        }
+      }
+    }
+  ],
+  "couchbase_statement": "SELECT `bookings`.`tour_id` AS `tour_id`, AVG(`__unnest_0`.`age`) AS `avg_age`, MIN(`__unnest_0`.`age`) AS `min_age`, MAX(`__unnest_0`.`age`) AS `max_age` FROM `bookings` UNNEST `bookings`.`travellers` AS `__unnest_0` GROUP BY `bookings`.`tour_id`;"
+}
