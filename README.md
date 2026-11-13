@@ -180,3 +180,6 @@ Use `json_bench.queries.load_template(path)` to read one as a fresh dictionary.
 
 The walkthrough prepares [baseline indexes](docs/indexes.md) for both databases
 before executing workloads. Definitions are in `experiments/indexes.json`.
+
+Use [per-query analysis](docs/analysis.md) and [query plots](docs/plotting.md) to
+compare retained load results without mixing warm-up, measurement and drain accounting.

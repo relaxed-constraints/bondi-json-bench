@@ -6,3 +6,5 @@
 - [Baseline indexes](indexes.md): prepare the experiment indexes in both databases.
 
 - [Load summaries](analysis.md): throughput, runtimes and outcomes for one run.
+
+- [Query plots](plotting.md): runtime distributions and per-query outcome counts.

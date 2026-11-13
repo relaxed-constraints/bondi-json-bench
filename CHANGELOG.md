@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add workload-ordered per-query summaries and successful runtime samples using
+  the same accounting as run summaries.
+- Add reusable runtime box plots and stacked outcome-count plots, with 200 dpi
+  defaults, explicit empty samples and early-stop labels.
+
 - Add pure load-result summaries with measurement-window throughput, successful
   runtimes, outcome counts and explicit early-stop indicators. Use them in the walkthrough.
 
