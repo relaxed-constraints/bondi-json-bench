@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Use scale factor 0.1 in the walkthrough and demonstrate sequential sustained
+  load with explicit query weights and retained per-invocation observations.
+
 - Support scans, optional grouping, empty aggregate maps, inclusion projection,
   sorting and limits with corrected JSONBench semantics.
 - Add 135 reference-output cases and seeded live operator-combination checks,

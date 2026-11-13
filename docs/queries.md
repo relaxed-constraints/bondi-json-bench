@@ -283,3 +283,15 @@ This is bounded, grammar-guided testing, not proof of equivalence for every
 possible template or dataset. The generated data has present scalar fields and
 known arrays. Null/missing values, mixed types, projection alias collisions and
 other shapes outside this tested contract require separate semantic review.
+
+## Sustained-load walkthrough
+
+The walkthrough uses scale factor 0.1 and runs each backend separately through
+BONDI's `generate_load()`. Settings specify query weights, client count, warm-up,
+measurement, query timeout and drain allowance. It retains `LoadResult` objects
+but not database documents. The inactive database is stopped.
+
+The inspection table includes warm-up and measurement admissions and distinguishes
+success, timeout, error and unresolved attempts. Measurement-admission counts may
+include drain completions and are not throughput. This short demonstration does
+not reproduce the paper's experimental protocol.
