@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Compact the walkthrough into shared deployment, loading and cleanup cells.
+
 - Add Couchbase deployment and loading to the walkthrough, using the same generated
   dataset as MongoDB. Include the BONDI Couchbase extra and separate cleanup.
 

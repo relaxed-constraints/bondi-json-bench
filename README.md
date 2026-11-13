@@ -146,7 +146,7 @@ and compatibility rules.
 Open [notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) and select this
 project's `.venv/bin/python` kernel. It generates travel data, deploys MongoDB and Couchbase locally, and loads the same
 dataset into both through BONDI. Start Docker before the deployment cells. Run
-`uv sync --locked` to install the Couchbase SDK. The final cleanup cells remove
+`uv sync --locked` to install the Couchbase SDK. The final cleanup cell removes
 both deployments and their data.
 
 ## Progress updates
