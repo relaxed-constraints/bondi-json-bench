@@ -1,0 +1,6009 @@
+{
+  "source_commit": "653367ce7e41d866489bae504fe963f8ee0d6758",
+  "source_sha256": {
+    "jsonbench/src/queries.json": "4812e86c309a8a517dd6522f7d6a97ae6052b4222e7e541bd9064376ee160aec",
+    "jsonbench/query_generator/template.py": "57d291b68929b61e4166653a6f9a683b215eabe4aaa34154df9c7ecd27bd02c9",
+    "jsonbench/query_generator/mdb_query_gen.py": "8c754c31ffcb28d3c3dbadf9cd4b26bcd8d7ea38568fe9a87f5719b8092194a3",
+    "jsonbench/query_generator/cb_query_gen.py": "e263966dda6b2877f012ec0eff53e521ace6e95d15f2001282c650de34d86cb7"
+  },
+  "seed": 23,
+  "cases": [
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {}
+      },
+      "mongodb_pipeline": [],
+      "couchbase_statement": "SELECT * FROM `tours`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "name": "Alpha \"quoted\""
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "name": "Alpha \"quoted\""
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` WHERE `tours`.`name` = \"Alpha \\\"quoted\\\"\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "project": {
+            "name": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$project": {
+            "name": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name` FROM `tours`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": -1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": -1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` ORDER BY `details_rank` DESC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "group": {
+            "by": "difficulty",
+            "aggregates": {}
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$group": {
+            "_id": "$difficulty"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`difficulty` AS `difficulty` FROM `tours` GROUP BY `tours`.`difficulty`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "group": {
+            "by": "difficulty",
+            "aggregates": {
+              "total": "sum(score)"
+            }
+          },
+          "sort": {
+            "field": "total",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$group": {
+            "_id": "$difficulty",
+            "total": {
+              "$sum": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "total": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`difficulty` AS `difficulty`, SUM(`tours`.`score`) AS `total` FROM `tours` GROUP BY `tours`.`difficulty` ORDER BY `total` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "score": 99
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "score": 99
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` WHERE `tours`.`score` = 99;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "itinerary.location": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "itinerary.location": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `__unnest_0`.`location` AS `itinerary_location` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1,
+            "itinerary.location": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1,
+            "itinerary.location": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `bookings`.`_id` AS `bookings__id`, `__unnest_0`.`location` AS `itinerary_location` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ]
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "itinerary.location": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "itinerary.location": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `__unnest_0`.`location` AS `itinerary_location` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` WHERE `tours`.`difficulty` = \"hard\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "easy"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"easy\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "hard"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `bookings`.`_id` AS `bookings__id` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"hard\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "sort": {
+            "field": "details.rank",
+            "direction": 1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$sort": {
+            "details.rank": 1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` ORDER BY `tours`.`details`.`rank` ASC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "absent"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `bookings`.`_id` AS `bookings__id` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"absent\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "itinerary.location": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "itinerary.location": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `__unnest_0`.`location` AS `itinerary_location` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "easy"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `bookings`.`_id` AS `bookings__id` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"easy\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `bookings`.`_id` AS `bookings__id` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "absent"
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` WHERE `tours`.`difficulty` = \"absent\" ORDER BY `tours`.`details`.`rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ]
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "absent"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` WHERE `tours`.`difficulty` = \"absent\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {}
+      },
+      "mongodb_pipeline": [],
+      "couchbase_statement": "SELECT * FROM `tours`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1,
+            "itinerary.location": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1,
+            "itinerary.location": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `bookings`.`_id` AS `bookings__id`, `__unnest_0`.`location` AS `itinerary_location` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "hard"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"hard\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "itinerary.location": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "itinerary.location": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `__unnest_0`.`location` AS `itinerary_location` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "absent"
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": -1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": -1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` WHERE `tours`.`difficulty` = \"absent\" ORDER BY `tours`.`details`.`rank` DESC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "sort": {
+            "field": "details.rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$sort": {
+            "details.rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` ORDER BY `tours`.`details`.`rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\" ORDER BY `details_rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1,
+            "itinerary.location": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1,
+            "itinerary.location": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `bookings`.`_id` AS `bookings__id`, `__unnest_0`.`location` AS `itinerary_location` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1,
+            "itinerary.location": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1,
+            "bookings._id": 1,
+            "itinerary.location": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank`, `bookings`.`_id` AS `bookings__id`, `__unnest_0`.`location` AS `itinerary_location` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` ORDER BY `details_rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "sort": {
+            "field": "details.rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$sort": {
+            "details.rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` ORDER BY `tours`.`details`.`rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` WHERE `tours`.`difficulty` = \"easy\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": -1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": -1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` ORDER BY `details_rank` DESC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "absent"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` WHERE `tours`.`difficulty` = \"absent\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` WHERE `tours`.`difficulty` = \"hard\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` ORDER BY `details_rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name`;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "absent"
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"absent\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\";"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` WHERE `tours`.`difficulty` = \"hard\" ORDER BY `tours`.`details`.`rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": 1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": 1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` ORDER BY `details_rank` ASC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": -1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": -1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\" ORDER BY `details_rank` DESC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "sort": {
+            "field": "details.rank",
+            "direction": 1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$sort": {
+            "details.rank": 1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT * FROM `tours` ORDER BY `tours`.`details`.`rank` ASC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 2;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": -1
+          }
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": -1
+          }
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` ORDER BY `details_rank` DESC;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "match": {
+            "difficulty": "hard"
+          },
+          "project": {
+            "name": 1,
+            "details.rank": 1
+          },
+          "sort": {
+            "field": "details.rank",
+            "direction": -1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "details.rank": 1
+          }
+        },
+        {
+          "$sort": {
+            "details.rank": -1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, `tours`.`details`.`rank` AS `details_rank` FROM `tours` WHERE `tours`.`difficulty` = \"hard\" ORDER BY `details_rank` DESC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "hard"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "hard"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"hard\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "match": {
+            "difficulty": "absent"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 4
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$match": {
+            "difficulty": "absent"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 4
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` WHERE `tours`.`difficulty` = \"absent\" GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 4;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "match": {
+            "difficulty": "easy"
+          },
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": -1
+          },
+          "limit": 1
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$match": {
+            "difficulty": "easy"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": -1
+          }
+        },
+        {
+          "$limit": 1
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` WHERE `tours`.`difficulty` = \"easy\" GROUP BY `tours`.`name` ORDER BY `rank` DESC LIMIT 1;"
+    },
+    {
+      "template": {
+        "primary_collection": "tours",
+        "operations": {
+          "join": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id"
+          },
+          "unnest": [
+            "itinerary"
+          ],
+          "group": {
+            "by": "name",
+            "aggregates": {
+              "total": "sum(score)",
+              "rank": "max(score)"
+            }
+          },
+          "sort": {
+            "field": "rank",
+            "direction": 1
+          },
+          "limit": 2
+        }
+      },
+      "mongodb_pipeline": [
+        {
+          "$lookup": {
+            "from": "bookings",
+            "localField": "_id",
+            "foreignField": "tour_id",
+            "as": "bookings"
+          }
+        },
+        {
+          "$unwind": "$bookings"
+        },
+        {
+          "$unwind": "$itinerary"
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "total": {
+              "$sum": "$score"
+            },
+            "rank": {
+              "$max": "$score"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "rank": 1
+          }
+        },
+        {
+          "$limit": 2
+        }
+      ],
+      "couchbase_statement": "SELECT `tours`.`name` AS `name`, SUM(`tours`.`score`) AS `total`, MAX(`tours`.`score`) AS `rank` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `tours`.`name` ORDER BY `rank` ASC LIMIT 2;"
+    }
+  ]
+}

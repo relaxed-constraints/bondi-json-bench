@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Support scans, optional grouping, empty aggregate maps, inclusion projection,
+  sorting and limits with corrected JSONBench semantics.
+- Add 135 reference-output cases and seeded live operator-combination checks,
+  including independent expected answers and order-sensitive comparisons.
+
 - Add Q8 joined-array expansion and composite grouping with reference and live
   weighting tests. Include all eight templates in the notebook workloads.
 

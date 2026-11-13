@@ -1,6 +1,7 @@
 # Query translation
 
-Translate a JSONBench template into native BONDI query objects. The supported templates are Q1 (total booking value per tour) and Q2
+Translate a JSONBench template into native BONDI query objects. All seven operations
+are optional, including `group`. Empty operations produce a collection scan. The supported templates are Q1 (total booking value per tour) and Q2
 (average, minimum and maximum traveller age per tour), plus Q3
 (average traveller group size per booking, grouped by tour), and Q4
 (itinerary visits to a location, grouped by difficulty), plus Q5
@@ -45,7 +46,7 @@ must match `[A-Za-z_][A-Za-z_0-9]*`.
 Equality filters use `match`, a mapping from field paths to non-null scalar values.
 Multiple predicates are combined with AND. Numbers must be finite.
 Use `count(*)` to count rows after array expansion and filtering.
-Other filters, sorting, limits and nested functions other than `size(field)` remain unsupported.
+Other filters and nested functions other than `size(field)` remain unsupported.
 An aggregate alias cannot equal `_id` or the grouping output alias.
 
 Unsupported values raise `ValueError`. A non-dictionary template or non-string
@@ -221,3 +222,64 @@ A single-item list still produces an object `_id` in MongoDB, as in JSONBench.
 Run `JSONBENCH_LIVE=1 uv run pytest tests/test_q8_live.py -q` to check this weighting
 and a second nationality against both databases. It uses the same disposable
 ports as the other live tests; run them sequentially.
+
+## Optional operations, projection and top-k queries
+
+The execution order is fixed: join, unnest, match, group or project, sort, limit.
+JSON key order does not change that order. A template can omit any operation.
+A group with empty `aggregates` returns the distinct grouping keys.
+
+`project` accepts a nonempty mapping of paths to integer 1, such as
+`{"name": 1, "details.rank": 1}`. Exclusion and computed expressions are not
+supported. Projection after grouping is rejected, matching corrected JSONBench.
+MongoDB retains `_id` by default and preserves nested paths. Couchbase flattens
+projected paths into aliases such as `details_rank`. Ungrouped Couchbase `SELECT *`
+wraps documents under collection aliases; MongoDB returns documents directly.
+These native result shapes are preserved by the translators.
+
+`sort` accepts one `field` and a `direction` of 1 or -1. After grouping, the field
+must be an aggregate alias. After projection, it must be included in the
+projection. `limit` must be a positive integer. Equal sort keys have no defined
+relative order. Limiting without a unique ordering can select different rows
+across databases; this does not by itself show a translation defect.
+
+```python
+template = {
+    "primary_collection": "tours",
+    "operations": {
+        "match": {"difficulty": "easy"},
+        "project": {"name": 1},
+        "sort": {"field": "name", "direction": 1},
+        "limit": 10,
+    },
+}
+```
+
+## Seeded combination validation
+
+`tests/template_cases.py` generates 128 distinct templates using seed 23. Together
+with seven hand-written cases, these cover scans, filters, projection, joins,
+array expansion, groups, sorting and limits in different combinations.
+`tests/fixtures/operator_combinations.json` records corrected JSONBench output
+and source hashes for all 135 templates. Tests also reject unsupported combinations.
+No sibling checkout is needed to run the tests.
+
+Run the live comparison with Docker available:
+
+```sh
+JSONBENCH_LIVE=1 uv run pytest tests/test_operator_combinations_live.py -q
+```
+
+It uses disposable deployments on ports 27137, 18391, 18393 and 21330, then removes
+them. Run live tests sequentially. This test creates a primary index for collection
+scans; it does not change the benchmark notebook's index configuration.
+
+The live comparison normalises known native output shapes, retains duplicate rows,
+and checks order when sorting is requested. Seven cases also have independently
+specified answers. Generated top-k cases use unique sort keys. Failure messages
+include the template and seed/index so a failure can be reproduced.
+
+This is bounded, grammar-guided testing, not proof of equivalence for every
+possible template or dataset. The generated data has present scalar fields and
+known arrays. Null/missing values, mixed types, projection alias collisions and
+other shapes outside this tested contract require separate semantic review.

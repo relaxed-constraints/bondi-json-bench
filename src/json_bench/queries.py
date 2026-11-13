@@ -1,4 +1,4 @@
-"""Translate the Q1–Q8 grouping subset into native BONDI query objects."""
+"""Translate the corrected JSONBench template subset into native BONDI query objects."""
 
 import json
 import math
@@ -126,11 +126,11 @@ def _match(operations):
     return dict(predicates)
 
 
-def _group(template):
-    """Validate the shared grouping subset and extract its parts.
+def _template(template):
+    """Validate all optional operations and extract their parts.
 
     Return the primary collection, grouping field, expressions, array paths,
-    predicates and joins. Both translators use this representation.
+    predicates, joins, projection, sort and limit. Both translators use this representation.
 
     The input template is only read, never changed. Unsupported structures raise
     ValueError. Incorrect template or expression types raise TypeError.
@@ -141,49 +141,87 @@ def _group(template):
     # Check the operation set before interpreting its contents.
     primary = _identifier(template.get("primary_collection"), "primary_collection")
     operations = template.get("operations")
-    if (
-        not isinstance(operations, dict)
-        or "group" not in operations
-        or set(operations) - {"group", "unnest", "match", "join"}
-    ):
-        raise ValueError("Only group and optional join/unnest/match operations are supported")
+    if not isinstance(operations, dict) or set(operations) - {
+        "group",
+        "unnest",
+        "match",
+        "join",
+        "project",
+        "sort",
+        "limit",
+    }:
+        raise ValueError("Unsupported template operation")
     joins = _joins(operations, primary)
     unnests = _unnests(operations, primary, joins)
 
-    # Preserve whether by is a scalar or a list, including single-item lists.
-    group = operations["group"]
-    if not isinstance(group, dict) or set(group) != {"by", "aggregates"}:
-        raise ValueError("group requires by and aggregates")
+    by, expressions = None, {}
+    if "group" in operations:
+        # Preserve whether by is a scalar or a list, including single-item lists.
+        group = operations["group"]
+        if not isinstance(group, dict) or set(group) != {"by", "aggregates"}:
+            raise ValueError("group requires by and aggregates")
 
-    by = group["by"]
-    paths = by if isinstance(by, list) else [by]
-    if not paths:
-        raise ValueError("At least one grouping field is required")
-    aliases = [_path(path).replace(".", "_") for path in paths]
-    if len(set(aliases)) != len(aliases):
-        raise ValueError("Grouping output aliases must be distinct")
-    aggregates = group["aggregates"]
-    if not isinstance(aggregates, dict) or not aggregates:
-        raise ValueError("group.aggregates must be a nonempty dictionary")
+        by = group["by"]
+        paths = by if isinstance(by, list) else [by]
+        if not paths:
+            raise ValueError("At least one grouping field is required")
+        aliases = [_path(path).replace(".", "_") for path in paths]
+        if len(set(aliases)) != len(aliases):
+            raise ValueError("Grouping output aliases must be distinct")
+        aggregates = group["aggregates"]
+        if not isinstance(aggregates, dict):
+            raise ValueError("group.aggregates must be a dictionary")
 
-    # Record each output name with its aggregate function and input path.
-    expressions = {}
-    for alias, expr in aggregates.items():
-        _identifier(alias, "Aggregate alias")
-        if alias in {*aliases, "_id"}:
-            raise ValueError("Aggregate alias must not collide with the group field or _id")
+        # Record each output name with its aggregate function and input path.
+        expressions = {}
+        for alias, expr in aggregates.items():
+            _identifier(alias, "Aggregate alias")
+            if alias in {*aliases, "_id"}:
+                raise ValueError("Aggregate alias must not collide with the group field or _id")
 
-        expressions[alias] = _expression(expr)
+            expressions[alias] = _expression(expr)
 
-    return primary, by, expressions, unnests, _match(operations), joins
+    projection = operations.get("project")
+    if "project" in operations:
+        if "group" in operations:
+            raise ValueError("Post-group projection is not supported")
+        if not isinstance(projection, dict) or not projection:
+            raise ValueError("Projection must be a nonempty inclusion mapping")
+        for path, include in projection.items():
+            _path(path)
+            if type(include) is not int or include != 1:
+                raise ValueError("Only inclusion projections are supported")
+        projection = dict(projection)
+
+    sort = operations.get("sort")
+    if "sort" in operations:
+        if (
+            not isinstance(sort, dict)
+            or set(sort) != {"field", "direction"}
+            or type(sort["direction"]) is not int
+            or sort["direction"] not in {-1, 1}
+        ):
+            raise ValueError("Sort requires field and direction (-1 or 1)")
+        _path(sort["field"])
+        if by is not None and sort["field"] not in expressions:
+            raise ValueError("Grouped sorting supports aggregate aliases only")
+        if projection is not None and sort["field"] not in projection:
+            raise ValueError("Sort field must be included in projection")
+        sort = dict(sort)
+
+    limit = operations.get("limit")
+    if "limit" in operations and (type(limit) is not int or limit <= 0):
+        raise ValueError("Limit must be a positive integer")
+    return primary, by, expressions, unnests, _match(operations), joins, projection, sort, limit
 
 
 def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     """Translate grouping, array expansion and aggregates into a MongoDB aggregation.
 
     Args:
-        template: Original JSONBench template. Supports group and optional join/unnest/match, simple or dotted
-            grouping fields (a path or a nonempty list), and sum/avg/min/max over field paths or size(field), plus count(*).
+        template: JSONBench template with optional join, unnest, match, group,
+            project, sort and limit. Projection is inclusion-only and cannot follow
+            grouping. See the query guide for expression and sorting restrictions.
         database: MongoDB database name, expressed as a simple identifier.
 
     Returns:
@@ -196,7 +234,9 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     Does not mutate the template, connect to a database, or create indexes.
     """
     _identifier(database, "database")
-    primary, by, expressions, unnests, predicates, joins = _group(template)
+    primary, by, expressions, unnests, predicates, joins, projection, sort, limit = _template(
+        template
+    )
 
     def compile_node(node):
         """Translate a field or function to its native MongoDB expression."""
@@ -207,14 +247,15 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
             return {"$sum": 1}
         return {"$" + operator: compile_node(argument)}
 
-    # MongoDB stores the grouping key in _id.
-    if isinstance(by, list):
-        group_key = {path.replace(".", "_"): "$" + path for path in by}
-    else:
-        group_key = {by.replace(".", "_"): "$" + by} if "." in by else "$" + by
-    group_stage = {"_id": group_key}
-    for alias, expression in expressions.items():
-        group_stage[alias] = compile_node(expression)
+    if by is not None:
+        # MongoDB stores the grouping key in _id.
+        if isinstance(by, list):
+            group_key = {path.replace(".", "_"): "$" + path for path in by}
+        else:
+            group_key = {by.replace(".", "_"): "$" + by} if "." in by else "$" + by
+        group_stage = {"_id": group_key}
+        for alias, expression in expressions.items():
+            group_stage[alias] = compile_node(expression)
 
     # Filter expanded rows before counting or aggregating them.
     pipeline = []
@@ -225,7 +266,14 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     pipeline.extend({"$unwind": "$" + path} for path in unnests)
     if predicates is not None:
         pipeline.append({"$match": predicates})
-    pipeline.append({"$group": group_stage})
+    if by is not None:
+        pipeline.append({"$group": group_stage})
+    if projection is not None:
+        pipeline.append({"$project": projection})
+    if sort is not None:
+        pipeline.append({"$sort": {sort["field"]: sort["direction"]}})
+    if limit is not None:
+        pipeline.append({"$limit": limit})
 
     return MongoAggregateQuery(
         target=MongoCollectionRef(database, primary),
@@ -252,7 +300,9 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
     """
     _identifier(bucket, "bucket")
     _identifier(scope, "scope")
-    primary, by, expressions, unnests, predicates, joins = _group(template)
+    primary, by, expressions, unnests, predicates, joins, projection, sort, limit = _template(
+        template
+    )
 
     # UNNEST changes how later field paths refer to the array elements.
     replacements = {}
@@ -293,7 +343,7 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
         function = "ARRAY_LENGTH" if operator == "size" else operator.upper()
         return f"{function}({compile_node(argument)})"
 
-    paths = by if isinstance(by, list) else [by]
+    paths = (by if isinstance(by, list) else [by]) if by is not None else []
     fields = []
     for path in paths:
         group_alias = path.replace(".", "_")
@@ -301,8 +351,12 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
     for alias, expression in expressions.items():
         fields.append(f"{compile_node(expression)} AS {quoted(alias)}")
 
+    if projection is not None:
+        fields = [f"{resolve(path)} AS {quoted(path.replace('.', '_'))}" for path in projection]
+    select = ", ".join(fields) if fields else "*"
+
     # Keep the original statement form. The context supplies its bucket and scope.
-    parts = [f"SELECT {', '.join(fields)} FROM {quoted(primary)}", *clauses]
+    parts = [f"SELECT {select} FROM {quoted(primary)}", *clauses]
     if predicates:
         # JSON encoding escapes strings without changing the original SQL++ form.
         conditions = [
@@ -310,7 +364,17 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
             for path, value in predicates.items()
         ]
         parts.append("WHERE " + " AND ".join(conditions))
-    parts.append("GROUP BY " + ", ".join(resolve(path) for path in paths))
+    if by is not None:
+        parts.append("GROUP BY " + ", ".join(resolve(path) for path in paths))
+    if sort is not None:
+        key = (
+            quoted(sort["field"].replace(".", "_"))
+            if by is not None or projection is not None
+            else resolve(sort["field"])
+        )
+        parts.append(f"ORDER BY {key} {'ASC' if sort['direction'] == 1 else 'DESC'}")
+    if limit is not None:
+        parts.append(f"LIMIT {limit}")
     return CouchbaseQuery(
         statement=" ".join(parts) + ";",
         query_context=f"default:`{bucket}`.`{scope}`",

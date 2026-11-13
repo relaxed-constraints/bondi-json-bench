@@ -54,7 +54,7 @@ def test_destination_does_not_rewrite_statement(template):
         lambda q: q["operations"].update({"join": {}}),
         lambda q: q["operations"]["group"].update({"by": []}),
         lambda q: q["operations"]["group"].update({"by": "tour.._id"}),
-        lambda q: q["operations"]["group"].update({"aggregates": {}}),
+        lambda q: q["operations"]["group"].update({"aggregates": []}),
         lambda q: q["operations"]["group"].update({"aggregates": {"total": "count(total_price)"}}),
         lambda q: q["operations"]["group"].update(
             {"aggregates": {"total": "sum(avg(travellers))"}}
