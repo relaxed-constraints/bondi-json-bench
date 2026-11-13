@@ -584,3 +584,106 @@ def cleanup(experiment, results_dir, dry_run, yes):
         report.pop("error_type", None)
         _save(root / "state.json", state)
         _progress("Cleanup complete. Logs and artifacts were retained.")
+
+
+@main.command()
+@click.option("--experiment", required=True, help="Name of the experiment to plot.")
+@click.option(
+    "--results-dir", type=click.Path(path_type=Path), default="results", show_default=True
+)
+@click.option(
+    "--dpi", type=click.IntRange(min=1), default=200, show_default=True, help="PNG resolution."
+)
+def plot(experiment, results_dir, dpi):
+    """Save notebook-style figures as PNG and PDF from completed run artifacts."""
+    import pandas as pd
+
+    from json_bench.analysis import prepare_cohort
+    from json_bench.plotting import (
+        plot_client_scaling,
+        plot_cohort_query_outcomes,
+        plot_cohort_query_runtimes,
+        plot_failure_heatmaps,
+        plot_outcome_percentages,
+    )
+
+    root = _root(experiment, results_dir)
+    if not (root / "state.json").exists():
+        raise click.ClickException("Experiment not found. Check --experiment and --results-dir.")
+    # Plot a snapshot of completed attempts without blocking ongoing benchmarks.
+    lock_id = hashlib.sha256(str(root).encode()).hexdigest()[:16]
+    with _lock(f"json-bench-plot-{lock_id}.lock"):
+        state = _state(root, allow_cleaned=True)
+        metadata, summaries, queries, included, skipped = {}, {}, {}, {}, {}
+        planned = dict.fromkeys([*state.get("benchmark_plan", {}), *state["runs"]])
+        for key in planned:
+            cell = state["runs"].get(key, {"status": "pending"})
+            if cell["status"] != "completed":
+                skipped[key] = cell["status"]
+                continue
+            attempts = [a for a in cell["attempts"] if a["status"] == "completed"]
+            if len(attempts) != 1:
+                raise click.ClickException(f"Expected one completed attempt for {key}.")
+            directory = (root / attempts[0]["path"]).resolve()
+            if not directory.is_relative_to(root):
+                raise click.ClickException("Run artifacts must be inside the experiment folder.")
+            try:
+                params = _read(directory / "params.json")
+                metadata[key] = {
+                    name: params[name] for name in ("backend", "clients", "scale_factor")
+                }
+                summaries[key] = _read(directory / "summary.json")
+                queries[key] = _read(directory / "per_query.json")
+            except (OSError, ValueError, KeyError) as error:
+                raise click.ClickException(
+                    f"Cannot read completed run {key} from {directory}: {error}"
+                ) from error
+            included[key] = str(directory.relative_to(root))
+        if not metadata:
+            raise click.ClickException("No completed benchmark runs are available to plot.")
+        if skipped:
+            _progress(f"Skipping {len(skipped)} unfinished or failed combinations:")
+            for key, status in skipped.items():
+                _progress(f"  {key}: {status}")
+        try:
+            cohort = prepare_cohort(
+                pd.DataFrame.from_dict(metadata, orient="index"), summaries, queries
+            )
+        except (ValueError, KeyError, TypeError) as error:
+            raise click.ClickException(f"Saved results are inconsistent: {error}") from error
+
+        output = root / "figures"
+        output.mkdir(exist_ok=True)
+        saved = []
+
+        def save(name, figure):
+            try:
+                for extension in ("png", "pdf"):
+                    filename = f"{name}.{extension}"
+                    figure.savefig(output / filename, dpi=dpi, bbox_inches="tight")
+                    saved.append(filename)
+            finally:
+                figure.clear()
+
+        save("clients_by_scale", plot_client_scaling(cohort.runs, dpi=dpi))
+        save("query_outcomes_normalized", plot_outcome_percentages(cohort, dpi=dpi))
+        save("failure_heatmaps", plot_failure_heatmaps(cohort, dpi=dpi))
+        for prefix, factory in (
+            ("query_runtimes", plot_cohort_query_runtimes),
+            ("query_outcomes", plot_cohort_query_outcomes),
+        ):
+            for scale, figure in factory(cohort, dpi=dpi).items():
+                suffix = "all" if scale is None else f"sf-{_scale_key(float(scale))}"
+                save(f"{prefix}_{suffix}", figure)
+        _save(
+            output / "plot_manifest.json",
+            {
+                "included_attempts": included,
+                "skipped_runs": skipped,
+                "dpi": dpi,
+                "files": saved,
+            },
+        )
+        _progress(
+            f"Saved {len(saved)} figures ({len(saved) // 2} PNG/PDF pairs) from {len(included)} runs to {output}."
+        )

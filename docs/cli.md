@@ -165,3 +165,34 @@ Once cleanup starts, this experiment cannot resume preparation or benchmarks.
 Choose a new experiment name to prepare new datasets. Saved results remain
 available for analysis. Moving result files to another host does not move the
 Docker deployments.
+
+## Generate figures
+
+```sh
+json-bench plot --experiment paper-run
+```
+
+Use the same `--results-dir` as preparation and benchmarking. The command reads
+completed run artifacts and writes PNG and PDF files under
+`results/paper-run/figures/`. It does not start databases or change run results,
+and it still works after cleanup. PNG files use 200 DPI by default; use `--dpi`
+to change the resolution.
+
+The figures match the analysis notebook:
+
+- `clients_by_scale`: throughput and mean successful runtime against client count.
+- `query_outcomes_normalized`: success, error, timeout, and unresolved percentages.
+- `failure_heatmaps`: error plus timeout percentages by scale factor and client count.
+- `query_runtimes_sf-*` and `query_runtimes_all`: successful runtime distributions by query.
+- `query_outcomes_sf-*` and `query_outcomes_all`: outcome counts by query.
+
+Scale factors, client counts, and repetitions come from the saved runs. The
+per-query figures pool client counts, as in the notebook. Completed runs with
+query errors or timeouts remain included. Failed, interrupted, or pending runs
+are listed as skipped. Missing or inconsistent artifacts in a completed run
+cause an error rather than silent exclusion.
+
+`plot_manifest.json` records the included attempt paths, skipped runs, output
+filenames, and DPI. Re-running the command overwrites matching figure filenames.
+It does not delete other files in the figures folder. Use the manifest to identify
+the files produced by the latest plot command.

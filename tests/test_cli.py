@@ -367,3 +367,67 @@ def test_legacy_unstarted_scales_keep_hash_identity(app):
     assert invoke("prepare", "--scale-factor", "0.1,0.5", "--resume").exit_code == 0
     expected = "cli-" + hashlib.sha256(f"{root.resolve()}/sf-0.5".encode()).hexdigest()[:16]
     assert calls[-1][2]["run_id"] == expected
+
+
+def test_plot_exports_png_pdf_after_cleanup_and_skips_failed_runs(app):
+    invoke, calls, root = app
+    assert invoke("prepare").exit_code == 0
+    assert invoke("benchmark").exit_code == 0
+    state = cli._read(root / "state.json")
+    counts = dict(success_count=2, error_count=1, timeout_count=0, unresolved_count=0)
+    for cell in state["runs"].values():
+        directory = root / cell["attempts"][0]["path"]
+        cli._save(
+            directory / "summary.json",
+            dict(
+                **counts,
+                measurement_admissions=3,
+                early_terminated=False,
+                throughput_queries_per_second=1,
+                mean_runtime_seconds=1.5,
+            ),
+        )
+        cli._save(
+            directory / "per_query.json",
+            [
+                dict(
+                    **counts,
+                    label="Q1",
+                    workload_position=0,
+                    successful_runtime_seconds=[1.0, 2.0],
+                )
+            ],
+        )
+    state["runs"]["failed-run"] = {"status": "failed", "attempts": []}
+    state["cleanup"] = {"status": "completed"}
+    cli._save(root / "state.json", state)
+    before = (root / "state.json").read_bytes()
+    with cli._lock("json-bench-cli.lock"):
+        result = invoke("plot")
+    assert result.exit_code == 0, result.output
+    assert "Skipping 1" in result.output
+    assert (root / "state.json").read_bytes() == before
+    output = root / "figures"
+    assert len(list(output.glob("*.png"))) == 7
+    assert len(list(output.glob("*.pdf"))) == 7
+    for path in output.glob("*.png"):
+        assert path.read_bytes().startswith(b"\x89PNG")
+    for path in output.glob("*.pdf"):
+        assert path.read_bytes().startswith(b"%PDF")
+    report = cli._read(output / "plot_manifest.json")
+    assert len(report["included_attempts"]) == 2
+    assert report["skipped_runs"] == {"failed-run": "failed"}
+    assert report["dpi"] == 200
+
+
+def test_plot_requires_completed_valid_artifacts(app):
+    invoke, calls, root = app
+    assert invoke("plot").exit_code != 0
+    assert invoke("prepare").exit_code == 0
+    result = invoke("plot")
+    assert "No completed benchmark runs" in result.output
+    assert invoke("benchmark").exit_code == 0
+    result = invoke("plot")
+    assert result.exit_code != 0
+    assert "Cannot read completed run" in result.output
+    assert not (root / "figures").exists()

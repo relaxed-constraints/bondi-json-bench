@@ -64,3 +64,6 @@ settings, and resume behavior.
 
 Use `json-bench cleanup --experiment <name>` to remove an experiment’s database
 deployments and data after confirmation. Logs and result artifacts remain on disk.
+
+Run `json-bench plot --experiment <name>` to generate the notebook-style figures
+as PNG and PDF files under the experiment's `figures/` folder.
