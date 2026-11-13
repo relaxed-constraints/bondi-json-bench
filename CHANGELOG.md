@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add native single-field index helpers and experiment baseline definitions.
+  Prepare MongoDB and Couchbase indexes before notebook workloads, with conflict
+  checks, repeat-call support and Couchbase readiness waits.
+
 - Extract grouped result comparison into json_bench.validate.compare_results,
   with execution checks, numeric tolerances, duplicate detection and sort checks.
   Use the helper in the walkthrough.

@@ -177,3 +177,6 @@ and the seeded live-validation command.
 
 Paper query definitions are stored in [experiments/templates](experiments/templates).
 Use `json_bench.queries.load_template(path)` to read one as a fresh dictionary.
+
+The walkthrough prepares [baseline indexes](docs/indexes.md) for both databases
+before executing workloads. Definitions are in `experiments/indexes.json`.

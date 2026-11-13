@@ -1,0 +1,4 @@
+{
+  "mongodb": {"bookings": ["tour_id"], "reviews": ["tour_id"]},
+  "couchbase": {"tours": ["_id"], "bookings": ["tour_id"], "reviews": ["tour_id"]}
+}
