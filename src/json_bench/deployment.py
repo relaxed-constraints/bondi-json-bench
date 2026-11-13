@@ -22,18 +22,18 @@ def couchbase_request(deployment, path, data=None):
 def configure_couchbase(deployment, config):
     """Set service quotas and give the travel bucket the full data quota."""
     quotas = {
-        "memoryQuota": config["couchbase_data_mb"],
-        "indexMemoryQuota": config["couchbase_index_mb"],
+        "memoryQuota": config["data_mb"],
+        "indexMemoryQuota": config["index_mb"],
     }
     couchbase_request(deployment, "/pools/default", quotas)
     couchbase_request(
         deployment,
         "/pools/default/buckets/travel",
-        {"ramQuotaMB": config["couchbase_data_mb"]},
+        {"ramQuotaMB": config["data_mb"]},
     )
     actual = couchbase_request(deployment, "/pools/default")
     bucket = couchbase_request(deployment, "/pools/default/buckets/travel")
     if any(actual[key] != value for key, value in quotas.items()):
         raise RuntimeError("Couchbase service quotas do not match the configuration")
-    if bucket["quota"]["ram"] != config["couchbase_data_mb"] * 1024**2:
+    if bucket["quota"]["ram"] != config["data_mb"] * 1024**2:
         raise RuntimeError("Couchbase bucket quota does not match the configuration")

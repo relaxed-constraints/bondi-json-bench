@@ -256,7 +256,7 @@ wheels = [
 [[package]]
 name = "bondi"
 version = "0.3.0"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../bondi" }
 dependencies = [
     { name = "click" },
     { name = "datasets" },
@@ -266,14 +266,34 @@ dependencies = [
     { name = "pymongo" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d7/cc/2081ee8e1774f760124537f4a92f8cc61c8213e25185de46ed5e602a14d1/bondi-0.3.0.tar.gz", hash = "sha256:e844cac299d5c74a63a77f353a743d4373d0d13d9a4f32e137c9929b4cb92cf2", size = 358942 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/de/4c5cfa022ffa97bd1d029d6ed25bd2102a07bd28c0b4fffecbde16a81491/bondi-0.3.0-py3-none-any.whl", hash = "sha256:d0024e1f26241cc6f91dd6542e168a92c96c227529e0252e156b6badcd8a9dec", size = 125767 },
-]
 
 [package.optional-dependencies]
 couchbase = [
     { name = "couchbase" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.1,<9" },
+    { name = "couchbase", marker = "extra == 'couchbase'", specifier = ">=4.6.3,<5" },
+    { name = "datasets", specifier = ">=3,<5" },
+    { name = "huggingface-hub", specifier = ">=0.24,<2" },
+    { name = "ijson", specifier = ">=3,<4" },
+    { name = "pyarrow", specifier = ">=17" },
+    { name = "pymongo", specifier = ">=4.13,<5" },
+    { name = "rich", specifier = ">=13,<15" },
+]
+provides-extras = ["couchbase"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.9" },
+]
+docs = [
+    { name = "mkdocstrings-python", specifier = ">=2.0.10" },
+    { name = "ruff", specifier = ">=0.9" },
+    { name = "zensical", specifier = ">=0.1.1,<0.2" },
 ]
 
 [[package]]
@@ -299,14 +319,14 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bondi", extras = ["couchbase"], specifier = "==0.3.0" },
+    { name = "bondi", extras = ["couchbase"], editable = "../bondi" },
     { name = "faker", specifier = "==38.3.0" },
     { name = "huggingface-hub", specifier = ">=0.30,<2" },
     { name = "ipykernel", specifier = ">=7.4.0" },
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "pandas", specifier = ">=3.1.0" },
     { name = "pymongo", specifier = ">=4.13,<5" },
-    { name = "yanex", specifier = "==0.6.1" },
+    { name = "yanex", specifier = "==0.7.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -3598,7 +3618,7 @@ wheels = [
 
 [[package]]
 name = "yanex"
-version = "0.6.1"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -3615,9 +3635,9 @@ dependencies = [
     { name = "textual" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/6f/9996d11cac7260372689ad67a69005dd3a22dde5d91ceca5f8708f550831/yanex-0.6.1.tar.gz", hash = "sha256:cc376b996257a2085b48859679ee71823675a53fbce94937533d13628b084166", size = 710026 }
+sdist = { url = "https://files.pythonhosted.org/packages/b8/84/0fb2262b69673b90e1adac58ef4ec3cf11c2fa009a9d62b1424a36e4c901/yanex-0.7.0.tar.gz", hash = "sha256:cf9a323e0eccd878ddf19114b658f9859867b8992aad2d37fa5a31ca5cc2dabe", size = 725083 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/88/9d0ea51dd926d39d1e1b9dddc252d5eae0618e6bc767a53923d0d102a567/yanex-0.6.1-py3-none-any.whl", hash = "sha256:0376b72a7a7db19d5a73e55eb4e74d53fd4c6b904380e05b5e4aa74878d90a62", size = 685372 },
+    { url = "https://files.pythonhosted.org/packages/b9/23/f7de1ed204aeaae48b9ab33baf76c73e6f01e13fd54e38b0d8fa006b5833/yanex-0.7.0-py3-none-any.whl", hash = "sha256:d18893c7675d896b9a69b85c950304dc1806c3e1b328e52b9b6bd75dcb2c7113", size = 693822 },
 ]
 
 [[package]]

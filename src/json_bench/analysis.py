@@ -4,8 +4,12 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from statistics import mean, median
+from typing import TYPE_CHECKING
 
 from bondi.load import LoadResult
+
+if TYPE_CHECKING:
+    from pandas import DataFrame
 
 
 @dataclass(frozen=True)
@@ -262,6 +266,7 @@ def load_result_record(observation: LoadResult) -> dict:
         "ended_seconds": observation.ended_seconds,
         "query_started": observation.query_started,
         "stop_reason": observation.stop_reason,
+        "duration": observation.duration,
         "result": None
         if result is None
         else {
@@ -272,3 +277,63 @@ def load_result_record(observation: LoadResult) -> dict:
             "error_type": type(result.error).__name__ if result.error else None,
         },
     }
+
+
+@dataclass
+class CohortAnalysis:
+    """Run and query tables for one explicitly selected experiment cohort."""
+
+    runs: "DataFrame"
+    queries: "DataFrame"
+
+
+def prepare_cohort(runs, summaries, per_query) -> CohortAnalysis:
+    """Combine selected run metadata with saved summary and per-query artifacts.
+
+    runs has an experiment-ID index and backend, clients and scale_factor columns.
+    summaries and per_query map those same IDs to their saved JSON artifacts.
+    Outcome percentages use each run's measurement admissions, including drain
+    outcomes. Empty runs have undefined percentages, never zero failure rates.
+    Runtime samples contain successful measurement admissions only.
+    """
+    import pandas as pd
+
+    if runs.empty or not runs.index.is_unique:
+        raise ValueError("Select a nonempty cohort with unique experiment IDs")
+    required = {"backend", "clients", "scale_factor"}
+    if not required <= set(runs.columns) or runs[list(required)].isna().any().any():
+        raise ValueError("Each run needs backend, clients and scale_factor")
+    records, query_records = [], []
+    expected_labels = None
+    counts = ["success_count", "error_count", "timeout_count", "unresolved_count"]
+    for experiment_id, metadata in runs.iterrows():
+        summary, queries = summaries[experiment_id], per_query[experiment_id]
+        if summary["early_terminated"]:
+            raise ValueError(f"Exclude or inspect early-stopped run {experiment_id}")
+        labels = [(q["workload_position"], q["label"]) for q in queries]
+        if expected_labels is not None and labels != expected_labels:
+            raise ValueError("Selected runs have different query labels or positions")
+        expected_labels = labels
+        total = summary["measurement_admissions"]
+        if sum(summary[key] for key in counts) != total:
+            raise ValueError(f"Outcome counts do not match admissions: {experiment_id}")
+        row = {key: metadata[key] for key in required}
+        row.update(summary)
+        row["experiment_id"] = experiment_id
+        for key in counts:
+            row[key.replace("_count", "_percent")] = (
+                100 * summary[key] / total if total else float("nan")
+            )
+        row["failure_percent"] = row["error_percent"] + row["timeout_percent"]
+        records.append(row)
+        for query in queries:
+            if len(query["successful_runtime_seconds"]) != query["success_count"]:
+                raise ValueError(f"Runtime samples do not match successes: {experiment_id}")
+            query_records.append(
+                {
+                    **{key: metadata[key] for key in required},
+                    "experiment_id": experiment_id,
+                    **query,
+                }
+            )
+    return CohortAnalysis(pd.DataFrame(records), pd.DataFrame(query_records))

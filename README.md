@@ -1,91 +1,5 @@
 # BONDI JSON Bench
 
-A document database benchmark built on BONDI 0.3.0.
-
-This initial checkout uses the clean
-[bondi-empty-project](https://github.com/relaxed-constraints/bondi-empty-project)
-starter at commit `25aec38`. Benchmark components are added in small, tested steps.
-
-It builds on the following dependencies and tools:
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) a Python project management tool
-- [Docker](https://docs.docker.com/get-started/) a platform for containerized applications
-- [BONDI](https://relaxed-constraints.github.io/bondi/) a document database research toolkit
-- [Yanex](https://github.com/rueckstiess/yanex) a tool for managing experiments and tracking results
-- [Jupyter Notebooks](https://jupyter.org/) an interactive environment for running and visualizing experiments
-- [pandas](https://pandas.pydata.org/) a tabular data analysis library for Python
-- [Matplotlib](https://matplotlib.org/) a plotting library for Python
-- [MARP](https://marp.app) (optional) a tool for rendering Markdown into slides
-
-<details>
-  <summary><b>What is all this stuff?</b></summary>
-
-#### uv
-
-If you're unfamiliar with `uv`, it's worth spending some time to understand its
-role in managing virtual environments, dependencies, publishing packages and
-running scripts. `uv` is a modern tool for Python project management that
-simplifies these tasks compared to traditional approaches using `virtualenv`, 
-`pip`, and custom shell scripts.
-
-Read about `uv` features in the [official documentation](https://docs.astral.sh/uv/getting-started/features/). 
-
-#### Docker
-
-Docker is a platform for developing, shipping, and running applications in containers.
-Containers package an application and its dependencies, ensuring consistent behavior
-across different environments. It makes it very easy to start and manage containerized
-services, like databases locally for development and experimentation. 
-
-Read more in the [official Docker documentation](https://docs.docker.com/get-started/).
-
-#### BONDI
-
-BONDI is a tooklkit for conducting research with document databases, with a focus on MongoDB. 
-It provides tools for deploying databases, generating, running and profiling query workloads, 
-analysing the schema of database collections, and estimating cardinalities of queries. 
-
-This repo is an example project demonstrating how to use BONDI for research with MongoDB, 
-including dataset preparation, database deployment, and experiment tracking.
-
-More info and the full documentation can be found on the [BONDI documentation site](https://relaxed-constraints.github.io/bondi/).
-
-#### Yanex
-
-Yanex is a generic tool for managing experiments and tracking and analysing their results. 
-It allows you to run scripts with specific configurations, record the outputs, and maintain
-a history of experiments. This is particularly useful for reproducibility and for 
-understanding the impact of different parameters on your results. 
-
-Yanex' documentation can be found on the [Yanex github page](https://github.com/rueckstiess/yanex).
-
-#### Jupyter Notebooks
-
-Jupyter notebooks combine executable code, explanations and plots in one document.
-We use them to explore saved experiment results interactively. Open the notebooks
-in VS Code with its Jupyter extension and select this project's Python environment
-as the kernel that runs the code.
-
-#### pandas
-
-pandas provides DataFrames: tables that you can filter, group and summarise in
-Python. In this project, we use them to organise query measurements, compare index
-sets and calculate statistics such as median execution times and speedups.
-
-#### Matplotlib
-
-Matplotlib creates plots from Python data. We use it with pandas to turn benchmark
-results into charts for analysis and progress updates.
-
-#### Marp (optional)
-
-Marp renders Markdown files as slide decks. We use it to write simple progress
-updates with text, tables, equations and images. The Marp for VS Code extension
-provides a slide preview and export commands. Start with the example deck in
-[results/week-1/presentation.md](results/week-1/presentation.md).
-
-</details>
-
-
 
 ## Repository structure
 
@@ -96,7 +10,7 @@ provides a slide preview and export commands. Start with the example deck in
 | `experiments/configs/` | Future experiment parameters. |
 | `notebooks/` | Future analysis notebooks. |
 | `results/` | Use this directory to store experiment results and create progress update slides. |
-| `src/json_bench/` | Travel data generation. |
+| `src/json_bench/` | Core library for `bondi-json-bench`, including travel data generation, query translation, and analysis. |
 | `tests/` | JSONBench compatibility and data-generation tests. |
 
 
@@ -115,6 +29,8 @@ cd ~/code/bondi-json-bench
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run
 these commands from this directory:
 
+#### Using `uv`:
+
 ```sh
 uv sync --locked     # installs dependencies
 uv run pytest        # runs the unit tests
@@ -122,64 +38,17 @@ uv run ruff check    # runs the linter to check code style
 uv run ruff format   # formats the code according to the linter rules
 ```
 
+#### Using `pip`:
 
-## Generate travel data
+In an activated Python virtual environment:
 
-```python
-from json_bench.data import generate_travel_dataset
-
-dataset = generate_travel_dataset(
-    scale=0.01,
-    seed=23,
-    reference_date="2025-11-01",
-)
-print({name: len(documents) for name, documents in dataset.items()})
-# {'users': 10, 'tours': 2, 'bookings': 50, 'reviews': 25}
+```sh
+pip install -r requirements.txt
+pytest        # runs the unit tests
+ruff check    # runs the linter to check code style
+ruff format   # formats the code according to the linter rules
 ```
-
-The function returns Python dictionaries in memory. It does not write files or
-connect to a database. See the [data generation guide](docs/data.md) for the API
-and compatibility rules.
-
-## Translate Q1
-
-Use `translate_mongodb()` and `translate_couchbase()` from `json_bench.queries`
-to produce native BONDI query objects. See the [translation guide](docs/queries.md).
-All eight paper templates are supported: joins, grouping, array expansion, equality filters, row counts,
-and sum/average/minimum/maximum aggregates over fields or array lengths. The walkthrough runs both queries as BONDI workloads and compares results.
-
-## Walkthrough notebook
-
-Open [notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) and select this
-project's `.venv/bin/python` kernel. It generates travel data, deploys MongoDB and Couchbase locally, and loads the same
-dataset into both through BONDI. Start Docker before the deployment cells. Run
-`uv sync --locked` to install the Couchbase SDK. The final cleanup cell removes
-both deployments and their data.
-
-## Progress updates
-
-Start with [the example slide deck](results/week-1/presentation.md). Install
-[Marp for VS Code](https://marketplace.visualstudio.com/items?itemName=marp-team.marp-vscode)
-to preview and export it. Replace the demo title and examples with your own work.
-
-## Next steps
-
-BONDI is pinned to 0.3.0. Experiment scripts and benchmark orchestration will be added
-separately. The walkthrough already demonstrates loading into both databases.
 
 ## License
 
 [MIT](LICENSE).
-
-The translators also support optional grouping, inclusion projection, sorting and
-limits. See [query translation](docs/queries.md) for the supported combinations
-and the seeded live-validation command.
-
-Paper query definitions are stored in [experiments/templates](experiments/templates).
-Use `json_bench.queries.load_template(path)` to read one as a fresh dictionary.
-
-The walkthrough prepares [baseline indexes](docs/indexes.md) for both databases
-before executing workloads. Definitions are in `experiments/indexes.json`.
-
-Use [per-query analysis](docs/analysis.md) and [query plots](docs/plotting.md) to
-compare retained load results without mixing warm-up, measurement and drain accounting.

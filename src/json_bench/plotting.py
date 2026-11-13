@@ -3,10 +3,11 @@
 import math
 from collections.abc import Mapping
 
+from matplotlib import colormaps
 from matplotlib.cbook import boxplot_stats
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
-from matplotlib.ticker import FuncFormatter, MaxNLocator
+from matplotlib.ticker import FuncFormatter, LogLocator, MaxNLocator, NullFormatter
 
 from json_bench.analysis import LoadAnalysis
 
@@ -232,3 +233,275 @@ def plot_query_outcomes(
     )
     figure.tight_layout()
     return figure
+
+
+def plot_client_scaling(runs, *, fontsize=12, dpi=200):
+    """Plot run-level throughput and mean runtime against concurrent clients.
+
+    runs is a DataFrame with backend, clients, scale_factor,
+    throughput_queries_per_second and mean_runtime_seconds columns. Each row is
+    one run. Repetitions have equal weight; shading spans their minimum/maximum.
+    Missing combinations remain gaps. Runtime NaNs (no successes) are not zeros.
+    Columns represent scale factors; rows show throughput and successful runtime.
+    Return a Figure without displaying or saving it.
+    """
+    required = {
+        "backend",
+        "clients",
+        "scale_factor",
+        "throughput_queries_per_second",
+        "mean_runtime_seconds",
+    }
+    if runs.empty or not required <= set(runs.columns):
+        raise ValueError("Supply nonempty run summaries with all required columns")
+    scales = sorted(runs["scale_factor"].unique())
+    clients = sorted(runs["clients"].unique())
+    figure = Figure(figsize=(5 * len(scales), 7), dpi=dpi, layout="constrained")
+    axes = figure.subplots(2, len(scales), squeeze=False)
+    metrics = [
+        ("throughput_queries_per_second", "Throughput (queries/s)"),
+        ("mean_runtime_seconds", "Mean query runtime (s)"),
+    ]
+    for column, scale in enumerate(scales):
+        subset = runs[runs["scale_factor"] == scale]
+        axes[0, column].set_title(f"SF = {scale:g}", fontsize=fontsize + 1)
+        for row, (metric, ylabel) in enumerate(metrics):
+            ax = axes[row, column]
+            for backend in ("mongodb", "couchbase"):
+                values = subset[subset["backend"] == backend]
+                if values.empty:
+                    continue
+                stats = values.groupby("clients")[metric].agg(["mean", "min", "max"])
+                stats = stats.reindex(clients)
+                color = _BACKEND_COLORS[backend]
+                ax.plot(
+                    range(len(clients)),
+                    stats["mean"],
+                    marker="o",
+                    color=color,
+                    label={"mongodb": "MongoDB", "couchbase": "Couchbase"}[backend],
+                )
+                ax.fill_between(
+                    range(len(clients)), stats["min"], stats["max"], color=color, alpha=0.15
+                )
+            # Keep zero throughput visible. Log scaling is used only for positive data.
+            observed = subset[metric].dropna()
+            if not observed.empty and (observed > 0).all():
+                ax.set_yscale("log")
+                ax.yaxis.set_major_locator(LogLocator(base=10, subs=(1, 2, 5)))
+                ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
+                ax.yaxis.set_minor_formatter(NullFormatter())
+            ax.set_xticks(range(len(clients)), clients)
+            ax.set_xlabel("Concurrent clients", fontsize=fontsize)
+            ax.set_ylabel(ylabel, fontsize=fontsize)
+            ax.tick_params(labelsize=fontsize)
+            ax.grid(alpha=0.2)
+            ax.set_axisbelow(True)
+        axes[0, column].legend(fontsize=fontsize)
+    return figure
+
+
+def plot_outcome_percentages(cohort, *, fontsize=11, dpi=200):
+    """Draw backend rows and SF columns; bars average run-level percentages."""
+    runs = cohort.runs
+    scales, clients = sorted(runs.scale_factor.unique()), sorted(runs.clients.unique())
+    backends = [b for b in _BACKEND_COLORS if b in set(runs.backend)]
+    figure = Figure(figsize=(4.5 * len(scales), 3.4 * len(backends)), dpi=dpi, layout="constrained")
+    axes = figure.subplots(len(backends), len(scales), squeeze=False)
+    for row, backend in enumerate(backends):
+        for col, sf in enumerate(scales):
+            ax = axes[row, col]
+            data = runs[(runs.backend == backend) & (runs.scale_factor == sf)]
+            bottom = [0.0] * len(clients)
+            for key, label, color in _OUTCOMES:
+                values = (
+                    data.groupby("clients")[key.replace("_count", "_percent")]
+                    .mean()
+                    .reindex(clients)
+                )
+                ax.bar(range(len(clients)), values, bottom=bottom, color=color, label=label)
+                bottom = [a + b for a, b in zip(bottom, values, strict=True)]
+            for i, client in enumerate(clients):
+                if data[data.clients == client].measurement_admissions.sum() == 0:
+                    ax.text(i, 50, "No data", rotation=90, ha="center", va="center")
+            ax.set_title(
+                f"{backend.title() if backend == 'couchbase' else 'MongoDB'} — SF = {sf:g}",
+                fontsize=fontsize,
+            )
+            ax.set_xticks(range(len(clients)), clients)
+            ax.set_xlabel("Concurrent clients", fontsize=fontsize)
+            ax.set_ylabel("Query attempts (%)", fontsize=fontsize)
+            ax.set_ylim(0, 100)
+            ax.tick_params(labelsize=fontsize)
+    axes[-1, 0].legend(
+        loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=4, fontsize=fontsize - 1
+    )
+    return figure
+
+
+def plot_failure_heatmaps(cohort, *, fontsize=11, dpi=200):
+    """Show mean run-level (error + timeout) percentages; unresolved stays separate."""
+    import numpy as np
+
+    runs = cohort.runs
+    scales, clients = sorted(runs.scale_factor.unique()), sorted(runs.clients.unique())
+    backends = [b for b in _BACKEND_COLORS if b in set(runs.backend)]
+    figure = Figure(
+        figsize=(max(5, len(clients)), max(3.5, len(backends) * (len(scales) * 0.65 + 1))),
+        dpi=dpi,
+        layout="constrained",
+    )
+    axes = figure.subplots(len(backends), 1, squeeze=False, sharex=True)
+    for ax, backend in zip(axes.flat, backends, strict=True):
+        grid = (
+            runs[runs.backend == backend]
+            .pivot_table(
+                index="scale_factor", columns="clients", values="failure_percent", aggfunc="mean"
+            )
+            .reindex(index=scales, columns=clients)
+        )
+        cmap = colormaps["YlOrRd"].with_extremes(bad="#dddddd")
+        im = ax.imshow(
+            np.ma.masked_invalid(grid.to_numpy()), vmin=0, vmax=100, cmap=cmap, aspect="equal"
+        )
+        for i in range(len(scales)):
+            for j in range(len(clients)):
+                value = grid.iloc[i, j]
+                ax.text(
+                    j,
+                    i,
+                    "—" if np.isnan(value) else f"{value:.1f}",
+                    ha="center",
+                    va="center",
+                    fontsize=fontsize - 1,
+                    color="white" if value > 65 else "black",
+                )
+        ax.set_title(
+            "MongoDB" if backend == "mongodb" else "Couchbase", fontsize=fontsize + 1, pad=10
+        )
+        ax.set_yticks(range(len(scales)), scales)
+        ax.set_xticks(range(len(clients)), clients)
+        ax.set_ylabel("Scale factor", fontsize=fontsize)
+        ax.tick_params(labelsize=fontsize)
+    axes[-1, 0].set_xlabel("Concurrent clients", fontsize=fontsize)
+    bar = figure.colorbar(im, ax=list(axes.flat), orientation="horizontal", shrink=0.6, aspect=30)
+    bar.set_label("Mean error + timeout rate (%)", fontsize=fontsize)
+    return figure
+
+
+def plot_cohort_query_runtimes(cohort, *, fontsize=12, dpi=200):
+    """Return SF-to-Figure mapping plus None for all SF; pool successful runtimes."""
+    queries = cohort.queries
+    figures = {}
+    for sf in [*sorted(queries.scale_factor.unique()), None]:
+        data = queries if sf is None else queries[queries.scale_factor == sf]
+        labels = data.sort_values("workload_position").label.unique().tolist()
+        figure, ax = _axes(
+            labels, (max(6, len(labels) * 0.8), 4.8), fontsize, dpi, "Successful query runtime (s)"
+        )
+        for b, (backend, color) in enumerate(_BACKEND_COLORS.items()):
+            for i, label in enumerate(labels):
+                rows = data[(data.backend == backend) & (data.label == label)]
+                samples = [v for values in rows.successful_runtime_seconds for v in values]
+                position = i + (b - 0.5) * 0.35
+                if samples:
+                    stats = boxplot_stats(samples, whis=(5, 95))
+                    ax.bxp(
+                        stats,
+                        positions=[position],
+                        widths=0.29,
+                        showfliers=False,
+                        patch_artist=True,
+                        manage_ticks=False,
+                        boxprops={"facecolor": color, "alpha": 0.7},
+                        medianprops={"color": "black"},
+                    )
+                else:
+                    ax.text(
+                        position,
+                        0.03,
+                        "No successes" if not rows.empty else "No data",
+                        rotation=90,
+                        ha="center",
+                        fontsize=fontsize - 3,
+                        transform=ax.get_xaxis_transform(),
+                    )
+        samples = [v for values in data.successful_runtime_seconds for v in values]
+        if samples and min(samples) > 0:
+            ax.set_yscale("log")
+            ax.yaxis.set_major_locator(LogLocator(subs=(1, 2, 5)))
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
+            ax.yaxis.set_minor_formatter(NullFormatter())
+        ax.set_title("All SF combined" if sf is None else f"SF = {sf:g}")
+        ax.legend(
+            handles=[
+                Patch(facecolor=c, label="MongoDB" if b == "mongodb" else "Couchbase")
+                for b, c in _BACKEND_COLORS.items()
+            ],
+            fontsize=fontsize,
+        )
+        figure.tight_layout()
+        figures[sf] = figure
+    return figures
+
+
+def plot_cohort_query_outcomes(cohort, *, fontsize=11, dpi=200):
+    """Return SF-to-Figure mapping plus None for all SF; pool outcome counts."""
+    queries = cohort.queries
+    figures = {}
+    for sf in [*sorted(queries.scale_factor.unique()), None]:
+        data = queries if sf is None else queries[queries.scale_factor == sf]
+        labels = data.sort_values("workload_position").label.unique().tolist()
+        figure, ax = _axes(
+            labels, (max(6, len(labels) * 0.8), 5), fontsize, dpi, "Query attempts (count)"
+        )
+        for b, backend in enumerate(_BACKEND_COLORS):
+            rows = data[data.backend == backend]
+            positions = [i + (b - 0.5) * 0.36 for i in range(len(labels))]
+            bottom = [0] * len(labels)
+            for key, _, color in _OUTCOMES:
+                values = rows.groupby("label")[key].sum().reindex(labels, fill_value=0)
+                ax.bar(
+                    positions,
+                    values,
+                    width=0.33,
+                    bottom=bottom,
+                    color=color,
+                    hatch="///" if b else "",
+                    edgecolor="0.25",
+                    linewidth=0.35,
+                )
+                bottom = [a + v for a, v in zip(bottom, values, strict=True)]
+            for i, label in enumerate(labels):
+                if rows[rows.label == label].empty:
+                    ax.text(
+                        positions[i],
+                        0.02,
+                        "No data",
+                        rotation=90,
+                        ha="center",
+                        transform=ax.get_xaxis_transform(),
+                        fontsize=fontsize - 2,
+                    )
+        ax.set_ylim(bottom=0)
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.set_title("All SF combined" if sf is None else f"SF = {sf:g}")
+        figure.legend(
+            handles=[Patch(facecolor=color, label=label) for _, label, color in _OUTCOMES],
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.06),
+            ncol=4,
+            fontsize=fontsize - 1,
+        )
+        figure.legend(
+            handles=[
+                Patch(facecolor="white", edgecolor="black", hatch=h, label=b)
+                for b, h in [("MongoDB (left)", ""), ("Couchbase (right)", "///")]
+            ],
+            loc="lower center",
+            ncol=2,
+            fontsize=fontsize - 1,
+        )
+        figure.tight_layout(rect=(0, 0.16, 1, 1))
+        figures[sf] = figure
+    return figures

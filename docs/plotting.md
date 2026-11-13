@@ -84,3 +84,29 @@ all outcomes for measurement admissions, including draining. Warm-up admissions
 are excluded. A zero-height bar means no measurement admissions for that query.
 Use this chart alongside successful runtimes to see failure rates and sample
 counts before drawing performance conclusions.
+
+## Cohort charts
+
+`notebooks/analysis.ipynb` selects completed Yanex runs with `yr.compare()`.
+Keep that selection limited to runs with the same workload and execution settings.
+The plotting functions do not check protocol equivalence.
+
+`prepare_cohort(runs, summaries, per_query)` combines run metadata with the saved
+`summary.json` and `per_query.json` artifacts. The dictionaries use experiment IDs
+as keys. The metadata table needs `backend`, `clients` and `scale_factor` columns.
+
+- `plot_client_scaling(runs)` plots throughput and mean runtime. Repetitions have
+  equal weight, with minimum–maximum shading.
+- `plot_outcome_percentages(cohort)` plots mean run-level outcome percentages.
+- `plot_failure_heatmaps(cohort)` plots mean run-level error plus timeout rates.
+  Unresolved attempts remain in the denominator but are not errors or timeouts.
+- `plot_cohort_query_runtimes(cohort)` pools successful runtime samples across
+  clients and repetitions. Boxes show quartiles, medians and 5th–95th percentiles.
+- `plot_cohort_query_outcomes(cohort)` pools outcome counts across clients and
+  repetitions. It does not normalize them.
+
+All figures use 200 DPI by default. Scale factors and client counts come from the
+selected data. Missing combinations are not treated as zero failure rates.
+The last two functions return a dictionary of separate figures: one per scale
+factor and an additional figure under the `None` key for all scale factors.
+Functions return figures without displaying or saving them.
