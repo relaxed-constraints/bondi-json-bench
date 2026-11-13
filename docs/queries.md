@@ -3,7 +3,8 @@
 Translate a JSONBench template into native BONDI query objects. The supported templates are Q1 (total booking value per tour) and Q2
 (average, minimum and maximum traveller age per tour), plus Q3
 (average traveller group size per booking, grouped by tour), and Q4
-(itinerary visits to a location, grouped by difficulty).
+(itinerary visits to a location, grouped by difficulty), plus Q5
+(average review rating per tour).
 Translation does not connect to a database, execute queries or create indexes.
 
 ```python
@@ -44,7 +45,7 @@ must match `[A-Za-z_][A-Za-z_0-9]*`.
 Equality filters use `match`, a mapping from field paths to non-null scalar values.
 Multiple predicates are combined with AND. Numbers must be finite.
 Use `count(*)` to count rows after array expansion and filtering.
-Joins, other filters, sorting, limits, compound grouping and nested functions other than `size(field)` remain unsupported.
+Other filters, sorting, limits, compound grouping and nested functions other than `size(field)` remain unsupported.
 An aggregate alias cannot equal `_id` or the grouping field.
 
 Unsupported values raise `ValueError`. A non-dictionary template or non-string
@@ -75,13 +76,13 @@ MongoDB names the grouping field `_id`; Couchbase names it `tour_id`.
 
 ## Compatibility checks
 
-`tests/fixtures/q1_translation.json` `q2_translation.json` `q3_translation.json` and `q4_translation.json` contain outputs captured from the
+`tests/fixtures/q1_translation.json` `q2_translation.json` `q3_translation.json` `q4_translation.json` and `q5_translation.json` contain outputs captured from the
 corrected JSONBench translators. Each fixture records the source commit and file checksums.
 Tests compare the entire pipeline and SQL++ statement, plus BONDI destination metadata.
 They need no JSONBench checkout at runtime.
 
 These tests establish translation compatibility. The
-[walkthrough](../notebooks/walkthrough.ipynb) executes Q1–Q4 as one BONDI workload per backend
+[walkthrough](../notebooks/walkthrough.ipynb) executes Q1–Q5 as one BONDI workload per backend
 and compares tour IDs and aggregate values, ignoring row order. It uses relative tolerance
 1e-9 and absolute tolerance 1e-6 for floating-point sums.
 
@@ -135,3 +136,35 @@ Groups with no matching visits do not appear.
 The notebook selects a location from the generated tours to produce a nonempty
 example. It creates the original `tours-id` index and compares counts by difficulty.
 The reference fixture retains the original template's `Donnafurt` value.
+
+## Q5: average review rating
+
+Q5 joins `tours._id` to `reviews.tour_id` and groups by the tour's `_id`.
+Each matching review contributes once to `avg(reviews.rating)`.
+Tours without reviews and reviews without a matching tour do not contribute.
+The join uses stored `_id` values, not Couchbase document keys.
+
+Use `join` with `from`, `localField` and `foreignField`. A single mapping or an
+ordered list is accepted. Source collections must be distinct, simple names,
+and cannot equal the primary collection. Join fields can be dotted paths.
+MongoDB emits `$lookup` followed by `$unwind`, which drops empty lookup arrays.
+Couchbase emits an inner `JOIN` and resolves joined fields through the source name.
+Joins run before explicit array expansion, filtering and grouping.
+
+The public translation functions stay unchanged. The notebook adds Q5 and the
+original Couchbase `reviews-tour_id` index. Explicit `unnest.from` still supports
+only the primary collection; support for later templates remains a separate step.
+Cross-database equivalence is checked on the generated scalar join keys. Missing,
+null or array-valued join keys are outside this equivalence claim.
+
+Run the optional join integration test with:
+
+```sh
+JSONBENCH_LIVE=1 uv run pytest tests/test_q5_live.py -q
+```
+
+It creates disposable deployments, loads `tests/fixtures/q5_join_data.json`,
+and checks expected averages in both databases. The fixture includes multiple
+reviews, a tour without reviews and a review without a matching tour. The test
+removes its deployments afterward. Docker must be running, and ports 27137,
+18391, 18393 and 21330 must be free.

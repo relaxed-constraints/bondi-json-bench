@@ -1,4 +1,4 @@
-"""Translate the Q1–Q4 grouping subset into native BONDI query objects."""
+"""Translate the Q1–Q5 grouping subset into native BONDI query objects."""
 
 import json
 import math
@@ -29,6 +29,31 @@ def _path(value):
     for part in value.split("."):
         _identifier(part, "Field path component")
     return value
+
+
+def _joins(operations, primary):
+    """Validate joins and copy them in template order.
+
+    Each source becomes both a collection name and an alias. Reject duplicate
+    sources and self joins because the template has no separate alias field.
+    """
+    items = operations.get("join", [])
+    items = items if isinstance(items, list) else [items]
+    sources = {primary}
+    joins = []
+    for item in items:
+        if not isinstance(item, dict) or set(item) != {"from", "localField", "foreignField"}:
+            raise ValueError("join requires from, localField and foreignField")
+        source = _identifier(item["from"], "join.from")
+        if source in sources:
+            raise ValueError(
+                "Join sources must be distinct from each other and the primary collection"
+            )
+        _path(item["localField"])
+        _path(item["foreignField"])
+        sources.add(source)
+        joins.append(dict(item))
+    return joins
 
 
 def _unnests(operations, primary):
@@ -100,9 +125,8 @@ def _match(operations):
 def _group(template):
     """Validate the shared grouping subset and extract its parts.
 
-    Return the primary collection, grouping field, aggregate expressions array
-    paths and equality predicates. Expressions contain nested (operator, argument) pairs. Both translators
-    use this representation.
+    Return the primary collection, grouping field, expressions, array paths,
+    predicates and joins. Both translators use this representation.
 
     The input template is only read, never changed. Unsupported structures raise
     ValueError. Incorrect template or expression types raise TypeError.
@@ -116,9 +140,9 @@ def _group(template):
     if (
         not isinstance(operations, dict)
         or "group" not in operations
-        or set(operations) - {"group", "unnest", "match"}
+        or set(operations) - {"group", "unnest", "match", "join"}
     ):
-        raise ValueError("Only group and optional unnest/match operations are supported")
+        raise ValueError("Only group and optional join/unnest/match operations are supported")
     unnests = _unnests(operations, primary)
 
     # This first subset accepts one grouping field, not a list or dotted path.
@@ -140,14 +164,14 @@ def _group(template):
 
         expressions[alias] = _expression(expr)
 
-    return primary, by, expressions, unnests, _match(operations)
+    return primary, by, expressions, unnests, _match(operations), _joins(operations, primary)
 
 
 def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     """Translate grouping, array expansion and aggregates into a MongoDB aggregation.
 
     Args:
-        template: Original JSONBench template. Supports group and optional unnest/match, one simple
+        template: Original JSONBench template. Supports group and optional join/unnest/match, one simple
             grouping field, and sum/avg/min/max over field paths or size(field), plus count(*).
         database: MongoDB database name, expressed as a simple identifier.
 
@@ -161,7 +185,7 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     Does not mutate the template, connect to a database, or create indexes.
     """
     _identifier(database, "database")
-    primary, by, expressions, unnests, predicates = _group(template)
+    primary, by, expressions, unnests, predicates, joins = _group(template)
 
     def compile_node(node):
         """Translate a field or function to its native MongoDB expression."""
@@ -178,7 +202,12 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
         group_stage[alias] = compile_node(expression)
 
     # Filter expanded rows before counting or aggregating them.
-    pipeline = [{"$unwind": "$" + path} for path in unnests]
+    pipeline = []
+    for join in joins:
+        pipeline.append({"$lookup": {**join, "as": join["from"]}})
+        # Dropping empty lookup arrays gives the original inner-join behavior.
+        pipeline.append({"$unwind": "$" + join["from"]})
+    pipeline.extend({"$unwind": "$" + path} for path in unnests)
     if predicates is not None:
         pipeline.append({"$match": predicates})
     pipeline.append({"$group": group_stage})
@@ -208,10 +237,11 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
     """
     _identifier(bucket, "bucket")
     _identifier(scope, "scope")
-    primary, by, expressions, unnests, predicates = _group(template)
+    primary, by, expressions, unnests, predicates, joins = _group(template)
 
     # UNNEST changes how later field paths refer to the array elements.
     replacements = {}
+    collections = {primary} | {join["from"] for join in joins}
 
     def quoted(path):
         """Quote each validated path component separately."""
@@ -222,14 +252,18 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
         for original in sorted(replacements, key=len, reverse=True):
             if path == original or path.startswith(original + "."):
                 return quoted(replacements[original] + path[len(original) :])
-        if path.split(".")[0] == primary:
+        if path.split(".")[0] in collections:
             return quoted(path)
         return quoted(primary + "." + path)
 
-    clauses = []
+    clauses = [
+        f"JOIN {quoted(join['from'])} ON {quoted(primary + '.' + join['localField'])} = "
+        f"{quoted(join['from'] + '.' + join['foreignField'])}"
+        for join in joins
+    ]
     for index, path in enumerate(unnests):
         alias = f"__unnest_{index}"
-        while alias == primary:
+        while alias in collections:
             alias += "_"
         clauses.append(f"UNNEST {resolve(path)} AS {quoted(alias)}")
         replacements[path] = alias

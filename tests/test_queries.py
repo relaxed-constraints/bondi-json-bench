@@ -51,7 +51,7 @@ def test_destination_does_not_rewrite_statement(template):
     "change",
     [
         lambda q: q["operations"].update({"match": {"paid": None}}),
-        lambda q: q["operations"].update({"join": []}),
+        lambda q: q["operations"].update({"join": {}}),
         lambda q: q["operations"]["group"].update({"by": ["tour_id"]}),
         lambda q: q["operations"]["group"].update({"by": "tour._id"}),
         lambda q: q["operations"]["group"].update({"aggregates": {}}),
@@ -294,3 +294,79 @@ def test_empty_match_and_count_whitespace():
     assert translate_mongodb(template, database="travel").pipeline[1] == {"$match": {}}
     statement = translate_couchbase(template, bucket="travel").statement
     assert "COUNT(*)" in statement and "WHERE" not in statement
+
+
+Q5 = json.loads((Path(__file__).parent / "fixtures" / "q5_translation.json").read_text())
+
+
+def test_q5_matches_corrected_jsonbench():
+    template = copy.deepcopy(Q5["template"])
+    mongo = translate_mongodb(template, database="travel")
+    couch = translate_couchbase(template, bucket="travel")
+    assert mongo.pipeline == Q5["mongodb_pipeline"]
+    assert mongo.target == MongoCollectionRef("travel", "tours")
+    assert couch.statement == Q5["couchbase_statement"]
+    assert couch.query_context == "default:`travel`.`_default`"
+    mongo.pipeline[0]["$lookup"]["foreignField"] = "changed"
+    assert template == Q5["template"]
+
+
+@pytest.mark.parametrize(
+    "join",
+    [
+        None,
+        {},
+        "reviews",
+        {"from": "reviews"},
+        {"from": "tours", "localField": "_id", "foreignField": "tour_id"},
+        {"from": "bad.name", "localField": "_id", "foreignField": "tour_id"},
+        {"from": "reviews", "localField": "$bad", "foreignField": "tour_id"},
+        {"from": "reviews", "localField": "_id", "foreignField": "tour..id"},
+    ],
+)
+@pytest.mark.parametrize("backend", ["mongodb", "couchbase"])
+def test_invalid_join(join, backend):
+    template = copy.deepcopy(Q5["template"])
+    template["operations"]["join"] = join
+    with pytest.raises(ValueError):
+        if backend == "mongodb":
+            translate_mongodb(template, database="travel")
+        else:
+            translate_couchbase(template, bucket="travel")
+
+
+def test_join_list_and_duplicate_sources():
+    template = copy.deepcopy(Q5["template"])
+    join = template["operations"]["join"]
+    template["operations"]["join"] = [join]
+    assert translate_mongodb(template, database="travel").pipeline == Q5["mongodb_pipeline"]
+    assert translate_couchbase(template, bucket="travel").statement == Q5["couchbase_statement"]
+    template["operations"]["join"].append(copy.deepcopy(join))
+    for translate, target in [
+        (translate_mongodb, {"database": "travel"}),
+        (translate_couchbase, {"bucket": "travel"}),
+    ]:
+        with pytest.raises(ValueError, match="distinct"):
+            translate(template, **target)
+
+
+def test_join_precedes_expansion_and_filter():
+    template = copy.deepcopy(Q5["template"])
+    template["operations"].update({"unnest": ["itinerary"], "match": {"reviews.rating": 5}})
+    pipeline = translate_mongodb(template, database="travel").pipeline
+    assert [next(iter(stage)) for stage in pipeline] == [
+        "$lookup",
+        "$unwind",
+        "$unwind",
+        "$match",
+        "$group",
+    ]
+    statement = translate_couchbase(template, bucket="travel").statement
+    assert (
+        statement.index("JOIN")
+        < statement.index("UNNEST")
+        < statement.index("WHERE")
+        < statement.index("GROUP BY")
+    )
+    assert "WHERE `reviews`.`rating` = 5" in statement
+    assert "META(" not in statement

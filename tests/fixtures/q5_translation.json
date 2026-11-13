@@ -1,0 +1,49 @@
+{
+  "source_commit": "653367ce7e41d866489bae504fe963f8ee0d6758",
+  "source_sha256": {
+    "jsonbench/src/queries.json": "4812e86c309a8a517dd6522f7d6a97ae6052b4222e7e541bd9064376ee160aec",
+    "jsonbench/query_generator/template.py": "57d291b68929b61e4166653a6f9a683b215eabe4aaa34154df9c7ecd27bd02c9",
+    "jsonbench/query_generator/mdb_query_gen.py": "8c754c31ffcb28d3c3dbadf9cd4b26bcd8d7ea38568fe9a87f5719b8092194a3",
+    "jsonbench/query_generator/cb_query_gen.py": "e263966dda6b2877f012ec0eff53e521ace6e95d15f2001282c650de34d86cb7"
+  },
+  "template": {
+    "name": "Query 5",
+    "description": "Average rating for each tour",
+    "primary_collection": "tours",
+    "operations": {
+      "join": {
+        "from": "reviews",
+        "localField": "_id",
+        "foreignField": "tour_id"
+      },
+      "group": {
+        "by": "_id",
+        "aggregates": {
+          "avg_rating": "avg(reviews.rating)"
+        }
+      }
+    }
+  },
+  "mongodb_pipeline": [
+    {
+      "$lookup": {
+        "from": "reviews",
+        "localField": "_id",
+        "foreignField": "tour_id",
+        "as": "reviews"
+      }
+    },
+    {
+      "$unwind": "$reviews"
+    },
+    {
+      "$group": {
+        "_id": "$_id",
+        "avg_rating": {
+          "$avg": "$reviews.rating"
+        }
+      }
+    }
+  ],
+  "couchbase_statement": "SELECT `tours`.`_id` AS `_id`, AVG(`reviews`.`rating`) AS `avg_rating` FROM `tours` JOIN `reviews` ON `tours`.`_id` = `reviews`.`tour_id` GROUP BY `tours`.`_id`;"
+}

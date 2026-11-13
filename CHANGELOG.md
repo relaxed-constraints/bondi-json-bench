@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add Q5 joins with corrected JSONBench reference tests. Run Q1–Q5 in the
+  walkthrough and compare review averages across both databases.
+
 - Add Q4 scalar equality filters and row counts, with corrected JSONBench fixtures.
   Include Q4 in the notebook workloads and compare results by each grouping field.
 

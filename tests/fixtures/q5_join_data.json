@@ -1,0 +1,10 @@
+{
+  "tours": [{"_id": "tour-a"}, {"_id": "tour-b"}, {"_id": "unreviewed"}],
+  "reviews": [
+    {"_id": "r1", "tour_id": "tour-a", "rating": 2},
+    {"_id": "r2", "tour_id": "tour-a", "rating": 4},
+    {"_id": "r3", "tour_id": "tour-b", "rating": 5},
+    {"_id": "orphan", "tour_id": "absent", "rating": 1}
+  ],
+  "expected": {"tour-a": 3.0, "tour-b": 5.0}
+}
