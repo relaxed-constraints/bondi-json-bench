@@ -1,4 +1,4 @@
 # Project documentation
 
 - [Travel data generation](data.md): public API, document counts and JSONBench compatibility.
-- [Query translation](queries.md): Q1, Q2 and Q3 templates and native BONDI query objects.
+- [Query translation](queries.md): Q1–Q4 templates and native BONDI query objects.

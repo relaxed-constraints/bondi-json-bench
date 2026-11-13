@@ -1,5 +1,7 @@
-"""Translate the Q1–Q3 grouping subset into native BONDI query objects."""
+"""Translate the Q1–Q4 grouping subset into native BONDI query objects."""
 
+import json
+import math
 import re
 
 from bondi.couchbase import CouchbaseQuery
@@ -48,7 +50,7 @@ def _unnests(operations, primary):
 
 
 def _expression(value):
-    """Parse an aggregate over a field or size(field).
+    """Parse count(*) or an aggregate over a field or size(field).
 
     Represent each part as (operator, argument). For example, avg(size(items))
     becomes ("avg", ("size", ("field", "items"))). Only one size call is allowed.
@@ -57,9 +59,11 @@ def _expression(value):
         raise TypeError("Aggregate expression must be a string")
 
     match = re.fullmatch(r"(\w+)\((.*)\)", value.strip())
+    if match and match[1].lower() == "count" and match[2].strip() == "*":
+        return "count", None
     if not match or match[1].lower() not in {"sum", "avg", "min", "max"}:
         raise ValueError(
-            "Supported aggregates are sum, avg, min and max over a field or size(field)"
+            "Supported aggregates are sum, avg, min and max over a field or size(field), plus count(*)"
         )
 
     argument = match[2].strip()
@@ -73,11 +77,31 @@ def _expression(value):
     return match[1].lower(), operand
 
 
+def _match(operations):
+    """Copy scalar equality predicates after validating paths and values.
+
+    Reject nulls, containers and non-finite numbers. Their comparison semantics
+    are outside the shared template subset.
+    """
+    if "match" not in operations:
+        return None
+    predicates = operations["match"]
+    if not isinstance(predicates, dict):
+        raise ValueError("match must be a dictionary of scalar equality predicates")
+    for path, value in predicates.items():
+        _path(path)
+        if value is None or not isinstance(value, (str, bool, int, float)):
+            raise ValueError("Only non-null scalar equality predicates are supported")
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError("Predicate numbers must be finite")
+    return dict(predicates)
+
+
 def _group(template):
     """Validate the shared grouping subset and extract its parts.
 
-    Return the primary collection, grouping field, aggregate expressions and array
-    paths. Expressions contain nested (operator, argument) pairs. Both translators
+    Return the primary collection, grouping field, aggregate expressions array
+    paths and equality predicates. Expressions contain nested (operator, argument) pairs. Both translators
     use this representation.
 
     The input template is only read, never changed. Unsupported structures raise
@@ -92,9 +116,9 @@ def _group(template):
     if (
         not isinstance(operations, dict)
         or "group" not in operations
-        or set(operations) - {"group", "unnest"}
+        or set(operations) - {"group", "unnest", "match"}
     ):
-        raise ValueError("Only group and optional unnest operations are supported")
+        raise ValueError("Only group and optional unnest/match operations are supported")
     unnests = _unnests(operations, primary)
 
     # This first subset accepts one grouping field, not a list or dotted path.
@@ -116,15 +140,15 @@ def _group(template):
 
         expressions[alias] = _expression(expr)
 
-    return primary, by, expressions, unnests
+    return primary, by, expressions, unnests, _match(operations)
 
 
 def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     """Translate grouping, array expansion and aggregates into a MongoDB aggregation.
 
     Args:
-        template: Original JSONBench template. Supports group and optional unnest, one simple
-            grouping field, and sum/avg/min/max over field paths or size(field).
+        template: Original JSONBench template. Supports group and optional unnest/match, one simple
+            grouping field, and sum/avg/min/max over field paths or size(field), plus count(*).
         database: MongoDB database name, expressed as a simple identifier.
 
     Returns:
@@ -137,13 +161,15 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     Does not mutate the template, connect to a database, or create indexes.
     """
     _identifier(database, "database")
-    primary, by, expressions, unnests = _group(template)
+    primary, by, expressions, unnests, predicates = _group(template)
 
     def compile_node(node):
         """Translate a field or function to its native MongoDB expression."""
         operator, argument = node
         if operator == "field":
             return "$" + argument
+        if operator == "count":
+            return {"$sum": 1}
         return {"$" + operator: compile_node(argument)}
 
     # MongoDB stores the grouping key in _id.
@@ -151,9 +177,15 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     for alias, expression in expressions.items():
         group_stage[alias] = compile_node(expression)
 
+    # Filter expanded rows before counting or aggregating them.
+    pipeline = [{"$unwind": "$" + path} for path in unnests]
+    if predicates is not None:
+        pipeline.append({"$match": predicates})
+    pipeline.append({"$group": group_stage})
+
     return MongoAggregateQuery(
         target=MongoCollectionRef(database, primary),
-        pipeline=[{"$unwind": "$" + path} for path in unnests] + [{"$group": group_stage}],
+        pipeline=pipeline,
     )
 
 
@@ -176,7 +208,7 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
     """
     _identifier(bucket, "bucket")
     _identifier(scope, "scope")
-    primary, by, expressions, unnests = _group(template)
+    primary, by, expressions, unnests, predicates = _group(template)
 
     # UNNEST changes how later field paths refer to the array elements.
     replacements = {}
@@ -207,6 +239,8 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
         operator, argument = node
         if operator == "field":
             return resolve(argument)
+        if operator == "count":
+            return "COUNT(*)"
         function = "ARRAY_LENGTH" if operator == "size" else operator.upper()
         return f"{function}({compile_node(argument)})"
 
@@ -216,6 +250,13 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
 
     # Keep the original statement form. The context supplies its bucket and scope.
     parts = [f"SELECT {', '.join(fields)} FROM {quoted(primary)}", *clauses]
+    if predicates:
+        # JSON encoding escapes strings without changing the original SQL++ form.
+        conditions = [
+            f"{resolve(path)} = {json.dumps(value, ensure_ascii=True, allow_nan=False)}"
+            for path, value in predicates.items()
+        ]
+        parts.append("WHERE " + " AND ".join(conditions))
     parts.append(f"GROUP BY {resolve(by)}")
     return CouchbaseQuery(
         statement=" ".join(parts) + ";",

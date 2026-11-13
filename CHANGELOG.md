@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add Q4 scalar equality filters and row counts, with corrected JSONBench fixtures.
+  Include Q4 in the notebook workloads and compare results by each grouping field.
+
 - Add Q3 array-length aggregates with corrected JSONBench reference tests.
   Include Q3 in the walkthrough workloads and result comparison.
 

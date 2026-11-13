@@ -50,12 +50,12 @@ def test_destination_does_not_rewrite_statement(template):
 @pytest.mark.parametrize(
     "change",
     [
-        lambda q: q["operations"].update({"match": {"paid": True}}),
+        lambda q: q["operations"].update({"match": {"paid": None}}),
         lambda q: q["operations"].update({"join": []}),
         lambda q: q["operations"]["group"].update({"by": ["tour_id"]}),
         lambda q: q["operations"]["group"].update({"by": "tour._id"}),
         lambda q: q["operations"]["group"].update({"aggregates": {}}),
-        lambda q: q["operations"]["group"].update({"aggregates": {"total": "count(*)"}}),
+        lambda q: q["operations"]["group"].update({"aggregates": {"total": "count(total_price)"}}),
         lambda q: q["operations"]["group"].update(
             {"aggregates": {"total": "sum(avg(travellers))"}}
         ),
@@ -225,3 +225,72 @@ def test_size_resolves_unnested_field():
     assert "AVG(ARRAY_LENGTH(`__unnest_0`.`children`))" in (
         translate_couchbase(template, bucket="travel").statement
     )
+
+
+Q4 = json.loads((Path(__file__).parent / "fixtures" / "q4_translation.json").read_text())
+
+
+def test_q4_matches_corrected_jsonbench():
+    template = copy.deepcopy(Q4["template"])
+    mongo = translate_mongodb(template, database="travel")
+    couch = translate_couchbase(template, bucket="travel")
+    assert mongo.pipeline == Q4["mongodb_pipeline"]
+    assert mongo.target == MongoCollectionRef("travel", "tours")
+    assert couch.statement == Q4["couchbase_statement"]
+    assert couch.query_context == "default:`travel`.`_default`"
+    assert template == Q4["template"]
+    mongo.pipeline[1]["$match"]["itinerary.location"] = "changed"
+    assert template == Q4["template"]
+
+
+@pytest.mark.parametrize("value", [None, [], {}, float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("backend", ["mongodb", "couchbase"])
+def test_invalid_match_value(value, backend):
+    template = copy.deepcopy(Q4["template"])
+    template["operations"]["match"] = {"itinerary.location": value}
+    with pytest.raises(ValueError):
+        if backend == "mongodb":
+            translate_mongodb(template, database="travel")
+        else:
+            translate_couchbase(template, bucket="travel")
+
+
+def test_match_literals_and_conjunction():
+    template = copy.deepcopy(Q4["template"])
+    values = {
+        "itinerary.location": 'A "quoted" place\\north',
+        "active": True,
+        "rank": 3,
+        "score": 1.5,
+    }
+    template["operations"]["match"] = values
+    mongo = translate_mongodb(template, database="travel")
+    assert mongo.pipeline[1] == {"$match": values}
+    statement = translate_couchbase(template, bucket="travel").statement
+    assert (
+        f"WHERE `__unnest_0`.`location` = {json.dumps(values['itinerary.location'])}" in statement
+    )
+    assert (
+        " AND `tours`.`active` = true AND `tours`.`rank` = 3 AND `tours`.`score` = 1.5" in statement
+    )
+
+
+@pytest.mark.parametrize("value", [[], None, {"bad..path": "x"}, {"$where": "x"}])
+def test_invalid_match_structure(value):
+    template = copy.deepcopy(Q4["template"])
+    template["operations"]["match"] = value
+    for translate, target in [
+        (translate_mongodb, {"database": "travel"}),
+        (translate_couchbase, {"bucket": "travel"}),
+    ]:
+        with pytest.raises(ValueError):
+            translate(template, **target)
+
+
+def test_empty_match_and_count_whitespace():
+    template = copy.deepcopy(Q4["template"])
+    template["operations"]["match"] = {}
+    template["operations"]["group"]["aggregates"] = {"num_of_tours": " COUNT( * ) "}
+    assert translate_mongodb(template, database="travel").pipeline[1] == {"$match": {}}
+    statement = translate_couchbase(template, bucket="travel").statement
+    assert "COUNT(*)" in statement and "WHERE" not in statement
