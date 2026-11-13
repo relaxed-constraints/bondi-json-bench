@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add per-query runtime and outcome plots to the walkthrough using retained load results.
+
 - Add workload-ordered per-query summaries and successful runtime samples using
   the same accounting as run summaries.
 - Add reusable runtime box plots and stacked outcome-count plots, with 200 dpi
