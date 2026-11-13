@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Extend the walkthrough with local MongoDB deployment, per-collection BONDI
+  loading and an explicit cleanup cell.
+
 - Add a walkthrough notebook with the travel-data generation example.
 
 - Add `json_bench.data.generate_travel_dataset()` with the existing JSONBench

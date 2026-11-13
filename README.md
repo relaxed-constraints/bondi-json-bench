@@ -144,7 +144,9 @@ and compatibility rules.
 ## Walkthrough notebook
 
 Open [notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) and select this
-project's `.venv/bin/python` kernel. It starts with the travel-data generation example.
+project's `.venv/bin/python` kernel. It generates travel data, deploys MongoDB locally, and loads each collection through
+BONDI. Start Docker before running the deployment cell. The last cell removes
+the deployment and its data.
 
 ## Progress updates
 
