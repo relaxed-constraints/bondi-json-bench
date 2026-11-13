@@ -30,6 +30,7 @@ couchbase_query = translate_couchbase(q1, bucket="travel", scope="_default")
 ## API
 
 ```python
+load_template(path: str | Path) -> dict
 translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery
 translate_couchbase(template: dict, *, bucket: str, scope: str = "_default") -> CouchbaseQuery
 ```
@@ -295,3 +296,27 @@ The inspection table includes warm-up and measurement admissions and distinguish
 success, timeout, error and unresolved attempts. Measurement-admission counts may
 include drain completions and are not throughput. This short demonstration does
 not reproduce the paper's experimental protocol.
+
+## Load templates from files
+
+The paper's Q1–Q8 definitions live in `experiments/templates/q1.json` through
+`q8.json`. They are experiment inputs, separate from the generic translator.
+The reference fixtures in `tests/fixtures` remain independent compatibility evidence.
+
+```python
+from pathlib import Path
+from json_bench.queries import load_template
+
+# Run from the repository root.
+template_dir = Path("experiments/templates")
+templates = [load_template(template_dir / f"q{i}.json") for i in range(1, 9)]
+```
+
+`load_template()` accepts a string or Path and reads a UTF-8 JSON object. Each call
+returns a fresh dictionary. It does not resolve query IDs or validate operations;
+the translators perform that validation. File errors and JSON decoding errors
+propagate. A non-object JSON value raises ValueError with the file path.
+
+The walkthrough finds the template directory from the repository root or
+`notebooks/`. It overrides Q4's location only in memory, using the generated data.
+The saved template retains the original paper parameter.

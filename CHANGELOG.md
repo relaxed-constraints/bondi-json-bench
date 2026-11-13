@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Move the paper templates to experiments/templates and load them by path in the
+  walkthrough. Add a generic load_template() helper with file and object checks.
+
 - Use scale factor 0.1 in the walkthrough and demonstrate sequential sustained
   load with explicit query weights and retained per-invocation observations.
 

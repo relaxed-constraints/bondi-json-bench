@@ -1,0 +1,24 @@
+{
+  "name": "Query 7",
+  "description": "Total traveller-visits per itinerary location",
+  "primary_collection": "tours",
+  "operations": {
+    "join": {
+      "from": "bookings",
+      "localField": "_id",
+      "foreignField": "tour_id"
+    },
+    "unnest": [
+      {
+        "field": "itinerary",
+        "from": "tours"
+      }
+    ],
+    "group": {
+      "by": "itinerary.location",
+      "aggregates": {
+        "total_travellers": "sum(size(bookings.travellers))"
+      }
+    }
+  }
+}

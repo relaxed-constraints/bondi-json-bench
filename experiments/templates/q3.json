@@ -1,0 +1,13 @@
+{
+  "name": "Query 3",
+  "description": "Average traveller group size (per booking) for each tour",
+  "primary_collection": "bookings",
+  "operations": {
+    "group": {
+      "by": "tour_id",
+      "aggregates": {
+        "avg_grp_size": "avg(size(travellers))"
+      }
+    }
+  }
+}

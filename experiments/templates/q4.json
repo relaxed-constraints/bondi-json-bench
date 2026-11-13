@@ -1,0 +1,19 @@
+{
+  "name": "Query 4",
+  "description": "Number of itinerary visits to a specified location, grouped by tour difficulty",
+  "primary_collection": "tours",
+  "operations": {
+    "unnest": [
+      "itinerary"
+    ],
+    "match": {
+      "itinerary.location": "Donnafurt"
+    },
+    "group": {
+      "by": "difficulty",
+      "aggregates": {
+        "num_of_tours": "count(*)"
+      }
+    }
+  }
+}

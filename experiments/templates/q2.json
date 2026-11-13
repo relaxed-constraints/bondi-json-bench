@@ -1,0 +1,21 @@
+{
+  "name": "Query 2",
+  "description": "Traveller age distribution for each tour",
+  "primary_collection": "bookings",
+  "operations": {
+    "unnest": [
+      {
+        "field": "travellers",
+        "from": "bookings"
+      }
+    ],
+    "group": {
+      "by": "tour_id",
+      "aggregates": {
+        "avg_age": "avg(travellers.age)",
+        "min_age": "min(travellers.age)",
+        "max_age": "max(travellers.age)"
+      }
+    }
+  }
+}

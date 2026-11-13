@@ -1,0 +1,24 @@
+{
+  "name": "Query 6",
+  "description": "Average traveller age for each destination",
+  "primary_collection": "bookings",
+  "operations": {
+    "join": {
+      "from": "tours",
+      "localField": "tour_id",
+      "foreignField": "_id"
+    },
+    "unnest": [
+      {
+        "field": "travellers",
+        "from": "bookings"
+      }
+    ],
+    "group": {
+      "by": "tours.destination",
+      "aggregates": {
+        "avg_age": "avg(travellers.age)"
+      }
+    }
+  }
+}

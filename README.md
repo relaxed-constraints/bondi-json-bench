@@ -174,3 +174,6 @@ separately. The walkthrough already demonstrates loading into both databases.
 The translators also support optional grouping, inclusion projection, sorting and
 limits. See [query translation](docs/queries.md) for the supported combinations
 and the seeded live-validation command.
+
+Paper query definitions are stored in [experiments/templates](experiments/templates).
+Use `json_bench.queries.load_template(path)` to read one as a fresh dictionary.

@@ -3,11 +3,33 @@
 import json
 import math
 import re
+from pathlib import Path
 
 from bondi.couchbase import CouchbaseQuery
 from bondi.mongodb import MongoAggregateQuery, MongoCollectionRef
 
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z_0-9]*")
+
+
+def load_template(path: str | Path) -> dict:
+    """Read one JSON template object from a UTF-8 file.
+
+    Args:
+        path: File path. Relative paths are resolved against the current directory.
+
+    Returns:
+        A fresh dictionary. This function does not validate query operations.
+        Pass the dictionary to a translator to check supported syntax.
+
+    Raises:
+        OSError: The file cannot be opened or read.
+        json.JSONDecodeError: The file does not contain valid JSON.
+        ValueError: The JSON value is not an object.
+    """
+    template = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(template, dict):
+        raise ValueError(f"Template file must contain a JSON object: {path}")
+    return template
 
 
 def _identifier(value, label):

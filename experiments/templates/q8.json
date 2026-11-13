@@ -1,0 +1,34 @@
+{
+  "name": "Query 8",
+  "description": "Traveller-weighted average tour-review rating per destination and nationality",
+  "primary_collection": "tours",
+  "operations": {
+    "join": [
+      {
+        "from": "bookings",
+        "localField": "_id",
+        "foreignField": "tour_id"
+      },
+      {
+        "from": "reviews",
+        "localField": "_id",
+        "foreignField": "tour_id"
+      }
+    ],
+    "unnest": [
+      {
+        "field": "bookings.travellers",
+        "from": "bookings"
+      }
+    ],
+    "group": {
+      "by": [
+        "destination",
+        "bookings.travellers.nationality"
+      ],
+      "aggregates": {
+        "avg_rating": "avg(reviews.rating)"
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Query 1",
+  "description": "Total booking value per tour",
+  "primary_collection": "bookings",
+  "operations": {
+    "group": {
+      "by": "tour_id",
+      "aggregates": {
+        "total_revenue": "sum(total_price)"
+      }
+    }
+  }
+}
