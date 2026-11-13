@@ -6,8 +6,8 @@
 | Directory | Purpose |
 | --- | --- |
 | `docs/` | Space for project notes and instructions. |
-| `experiments/` | Future Yanex experiment scripts. |
-| `experiments/configs/` | Future experiment parameters. |
+| `experiments/` | Thin Yanex adapters for shared experiment execution. |
+| `experiments/configs/` | Preparation and benchmark parameters. |
 | `notebooks/` | Future analysis notebooks. |
 | `results/` | Use this directory to store experiment results and create progress update slides. |
 | `src/json_bench/` | Core library for `bondi-json-bench`, including travel data generation, query translation, and analysis. |
@@ -48,6 +48,9 @@ pytest        # runs the unit tests
 ruff check    # runs the linter to check code style
 ruff format   # formats the code according to the linter rules
 ```
+
+See [Shared experiment execution](docs/experiments.md) for the preparation and
+benchmark Python API used by both Yanex scripts.
 
 ## License
 
