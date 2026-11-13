@@ -15,7 +15,6 @@ from pathlib import Path
 import click
 from bondi.deployment import get_deployment
 from rich.console import Console
-from rich.table import Table
 
 from json_bench.experiment import prepare_databases, run_benchmark
 
@@ -88,16 +87,6 @@ def _progress(message):
     console.print(message, markup=False, highlight=False)
 
 
-def _plan(rows, title):
-    console.print(title, markup=False, highlight=False)
-    table = Table(expand=True)
-    table.add_column("Combination")
-    table.add_column("Status")
-    for key, status in rows:
-        table.add_row(key, status)
-    console.print(table)
-
-
 def _execute(root, state, section, jobs, resume, operation):
     """Keep completed cells and preserve every interrupted or failed attempt."""
     cells = state.setdefault(section, {})
@@ -138,10 +127,15 @@ def _execute(root, state, section, jobs, resume, operation):
     console.print("[green]All selected combinations completed.[/green]")
 
 
-def _state(root):
+def _state(root, *, allow_cleaned=False):
     state = _read(root / "state.json")
     if state.get("schema_version") != 1:
         raise click.ClickException("Unsupported experiment state version.")
+    if state.get("cleanup") and not allow_cleaned:
+        raise click.ClickException(
+            "Cleanup has started for this experiment. Its datasets cannot be resumed. "
+            "Choose a new experiment name."
+        )
     return state
 
 
@@ -272,11 +266,10 @@ def prepare(
                     "Output folder is not empty. Choose a new experiment name."
                 )
             state = {"schema_version": 1, "preparation_plan": plan, "preparations": {}, "runs": {}}
-        _plan(
-            [(key, state["preparations"].get(key, {}).get("status", "pending")) for key in jobs],
-            f"Prepare {len(jobs)} dataset pairs · {root}",
-        )
+        _progress(f"Prepare {len(jobs)} dataset pairs · {root}")
         if dry_run:
+            for key in jobs:
+                _progress(f"  {key}")
             return
         # Share the benchmark lock during preparation, but not around run_benchmark,
         # which takes that lock itself. This also excludes active Yanex benchmarks.
@@ -438,11 +431,10 @@ def benchmark(
             )
         if state["runs"] and not resume:
             raise click.ClickException("Benchmark runs already exist. Use --resume to continue.")
-        _plan(
-            [(key, state["runs"].get(key, {}).get("status", "pending")) for key in jobs],
-            f"Benchmark {len(jobs)} combinations · {root}",
-        )
+        _progress(f"Benchmark {len(jobs)} combinations · {root}")
         if dry_run:
+            for key in jobs:
+                _progress(f"  {key}")
             return
         state["benchmark_settings"] = settings
         state.setdefault("benchmark_plan", {}).update(jobs)
@@ -463,3 +455,78 @@ def benchmark(
             )
 
         _execute(root, state, "runs", jobs, resume, operation)
+
+
+@main.command()
+@click.option("--experiment", required=True, help="Name of the experiment to clean up.")
+@click.option(
+    "--results-dir", type=click.Path(path_type=Path), default="results", show_default=True
+)
+@click.option("--dry-run", is_flag=True, help="List recorded deployments without removing them.")
+@click.option("--yes", "-y", is_flag=True, help="Skip the confirmation prompt.")
+def cleanup(experiment, results_dir, dry_run, yes):
+    """Remove recorded deployments and data volumes; keep all result files."""
+    root = _root(experiment, results_dir)
+    if not (root / "state.json").exists():
+        raise click.ClickException("Experiment not found. Check --experiment and --results-dir.")
+    with _lock("json-bench-cli.lock"), _lock("bondi-json-bench-benchmark.lock"):
+        state = _state(root, allow_cleaned=True)
+        names = set()
+        for cell in state["preparations"].values():
+            for attempt in cell["attempts"]:
+                path = (root / attempt["path"] / "preparation.json").resolve()
+                if not path.is_relative_to(root):
+                    raise click.ClickException(
+                        "Preparation manifest must be inside the experiment folder."
+                    )
+                if not path.exists():
+                    continue  # Preparation may have failed before creating deployments.
+                for backend, deployment in _read(path).get("deployments", {}).items():
+                    name = deployment["name"]
+                    if backend not in {"mongodb", "couchbase"} or not re.fullmatch(
+                        rf"jsonbench-{backend}-[a-z0-9-]+", name
+                    ):
+                        raise click.ClickException(
+                            "Unexpected deployment name in preparation manifest."
+                        )
+                    names.add(name)
+        if not names:
+            _progress("No deployments are recorded for this experiment. Nothing to remove.")
+            return
+        _progress("Deployments and data volumes to remove:")
+        for name in sorted(names):
+            _progress(f"  {name}")
+        _progress(f"Logs and artifacts will remain in {root}.")
+        if dry_run:
+            return
+        if not yes:
+            click.confirm("Remove these deployments and all their database data?", abort=True)
+        report = state.setdefault("cleanup", {"status": "running", "removed": []})
+        report["status"] = "running"
+        _save(root / "state.json", state)
+        for name in sorted(names):
+            try:
+                deployment = get_deployment(name)
+            except FileNotFoundError:
+                _progress(f"Already absent: {name}")
+            else:
+                try:
+                    deployment.remove()
+                except Exception as error:
+                    report.update(
+                        status="failed", failed_deployment=name, error_type=type(error).__name__
+                    )
+                    _save(root / "state.json", state)
+                    raise click.ClickException(
+                        f"Could not remove {name} ({type(error).__name__}). "
+                        "Run cleanup again to finish. Logs and artifacts are retained."
+                    ) from error
+                _progress(f"Removed: {name}")
+            if name not in report["removed"]:
+                report["removed"].append(name)
+            _save(root / "state.json", state)
+        report["status"] = "completed"
+        report.pop("failed_deployment", None)
+        report.pop("error_type", None)
+        _save(root / "state.json", state)
+        _progress("Cleanup complete. Logs and artifacts were retained.")

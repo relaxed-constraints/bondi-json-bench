@@ -132,7 +132,25 @@ The CLI uses the same [shared execution functions](experiments.md) as Yanex.
 The metric definitions and result file formats are unchanged. CLI results are
 ordinary files; they are not registered as Yanex experiments.
 
-Deployments remain stopped with data retained. Their names appear in each
-`preparation.json`. Remove them with `bondi deployment remove <name>` when you
-no longer need their data. Keep the result folders for analysis. Moving the
-result folder to another host does not move the Docker deployments.
+## Remove database deployments
+
+When you no longer need the database data, run:
+
+```sh
+json-bench cleanup --experiment paper-run
+```
+
+Use the same `--results-dir` as preparation if you changed its default. Cleanup
+lists the deployment names and asks for confirmation. It removes their containers
+and data volumes, including deployments recorded in failed preparation attempts.
+It does not delete logs, observations, summaries, or other artifacts. It adds a
+cleanup record to `state.json`.
+
+Use `--dry-run` to preview removal or `--yes` to skip confirmation. Missing
+deployments are harmless. If removal fails partway through, run cleanup again.
+The command uses the CLI and benchmark locks to reject concurrent operations.
+
+Once cleanup starts, this experiment cannot resume preparation or benchmarks.
+Choose a new experiment name to prepare new datasets. Saved results remain
+available for analysis. Moving result files to another host does not move the
+Docker deployments.

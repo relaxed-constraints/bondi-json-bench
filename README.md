@@ -61,3 +61,6 @@ benchmark Python API used by both Yanex scripts.
 Use `json-bench prepare` and `json-bench benchmark` to run single combinations or
 a full matrix without Yanex. See the [CLI guide](docs/cli.md) for commands,
 settings, and resume behavior.
+
+Use `json-bench cleanup --experiment <name>` to remove an experiment’s database
+deployments and data after confirmation. Logs and result artifacts remain on disk.

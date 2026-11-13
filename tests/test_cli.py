@@ -209,3 +209,89 @@ def test_preparation_retry_stops_both_owned_databases(app, monkeypatch):
     assert len(stopped) == 2
     assert stopped[0].startswith("jsonbench-mongodb-cli-")
     assert stopped[1].startswith("jsonbench-couchbase-cli-")
+
+
+def cleanup_fixture(app, monkeypatch):
+    from types import SimpleNamespace
+
+    invoke, calls, root = app
+    assert invoke("prepare").exit_code == 0
+    state = cli._read(root / "state.json")
+    path = root / state["preparations"]["sf-0.1"]["attempts"][0]["path"] / "preparation.json"
+    manifest = cli._read(path)
+    manifest["deployments"] = {
+        backend: {"name": f"jsonbench-{backend}-cleanup-test"}
+        for backend in ("mongodb", "couchbase")
+    }
+    cli._save(path, manifest)
+    removed = []
+    monkeypatch.setattr(
+        cli, "get_deployment", lambda name: SimpleNamespace(remove=lambda: removed.append(name))
+    )
+    return invoke, root, path, removed
+
+
+def test_cleanup_confirmation_and_artifact_preservation(app, monkeypatch):
+    invoke, root, path, removed = cleanup_fixture(app, monkeypatch)
+    before = path.read_bytes()
+    state_before = (root / "state.json").read_bytes()
+    assert invoke("cleanup", "--dry-run").exit_code == 0
+    assert not removed
+    # CliRunner supplies no answer: the default is cancellation.
+    assert invoke("cleanup").exit_code != 0
+    assert not removed
+    assert (root / "state.json").read_bytes() == state_before
+    result = CliRunner().invoke(
+        cli.main,
+        ["cleanup", "--experiment", "test", "--results-dir", str(root.parent)],
+        input="y\n",
+    )
+    assert result.exit_code == 0, result.output
+    assert sorted(removed) == ["jsonbench-couchbase-cleanup-test", "jsonbench-mongodb-cleanup-test"]
+    assert path.read_bytes() == before
+    assert cli._read(root / "state.json")["cleanup"]["status"] == "completed"
+    assert invoke("benchmark", "--resume").exit_code != 0
+    assert invoke("prepare", "--resume").exit_code != 0
+
+
+def test_cleanup_partial_failure_and_missing_deployment(app, monkeypatch):
+    from types import SimpleNamespace
+
+    invoke, root, path, removed = cleanup_fixture(app, monkeypatch)
+
+    def find(name):
+        if "couchbase" in name:
+            raise FileNotFoundError(name)
+
+        def fail():
+            raise RuntimeError("removal failed")
+
+        return SimpleNamespace(remove=fail)
+
+    monkeypatch.setattr(cli, "get_deployment", find)
+    assert invoke("cleanup", "--yes").exit_code != 0
+    assert cli._read(root / "state.json")["cleanup"]["status"] == "failed"
+    monkeypatch.setattr(
+        cli, "get_deployment", lambda name: SimpleNamespace(remove=lambda: removed.append(name))
+    )
+    assert invoke("cleanup", "--yes").exit_code == 0
+    assert path.exists()
+
+
+def test_cleanup_checks_all_attempts_and_deduplicates(app, monkeypatch):
+    invoke, root, path, removed = cleanup_fixture(app, monkeypatch)
+    state = cli._read(root / "state.json")
+    cell = state["preparations"]["sf-0.1"]
+    cell["attempts"].append(dict(cell["attempts"][0]))
+    cli._save(root / "state.json", state)
+    assert invoke("cleanup", "--yes").exit_code == 0
+    assert len(removed) == 2
+
+
+def test_cleanup_rejects_unrelated_names(app, monkeypatch):
+    invoke, root, path, removed = cleanup_fixture(app, monkeypatch)
+    manifest = cli._read(path)
+    manifest["deployments"]["mongodb"]["name"] = "json-storm-mongo"
+    cli._save(path, manifest)
+    assert invoke("cleanup", "--yes").exit_code != 0
+    assert not removed
