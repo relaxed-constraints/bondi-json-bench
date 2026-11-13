@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add Q8 joined-array expansion and composite grouping with reference and live
+  weighting tests. Include all eight templates in the notebook workloads.
+
 - Validate Q7 against corrected JSONBench and a live traveller-visit fixture.
   Add Q7 to the notebook workloads; no new translation operators are needed.
 

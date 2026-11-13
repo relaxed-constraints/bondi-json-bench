@@ -1,0 +1,94 @@
+{
+  "tours": [
+    {
+      "_id": "a",
+      "destination": "Sydney"
+    },
+    {
+      "_id": "b",
+      "destination": "Sydney"
+    },
+    {
+      "_id": "unreviewed",
+      "destination": "Sydney"
+    },
+    {
+      "_id": "unbooked",
+      "destination": "Sydney"
+    }
+  ],
+  "bookings": [
+    {
+      "_id": "a1",
+      "tour_id": "a",
+      "travellers": [
+        {
+          "nationality": "AU"
+        },
+        {
+          "nationality": "AU"
+        },
+        {
+          "nationality": "DE"
+        }
+      ]
+    },
+    {
+      "_id": "b1",
+      "tour_id": "b",
+      "travellers": [
+        {
+          "nationality": "AU"
+        }
+      ]
+    },
+    {
+      "_id": "u",
+      "tour_id": "unreviewed",
+      "travellers": [
+        {
+          "nationality": "AU"
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "_id": "r1",
+      "tour_id": "a",
+      "rating": 2
+    },
+    {
+      "_id": "r2",
+      "tour_id": "a",
+      "rating": 4
+    },
+    {
+      "_id": "r3",
+      "tour_id": "b",
+      "rating": 5
+    },
+    {
+      "_id": "r4",
+      "tour_id": "unbooked",
+      "rating": 1
+    },
+    {
+      "_id": "orphan",
+      "tour_id": "absent",
+      "rating": 1
+    }
+  ],
+  "expected": [
+    {
+      "destination": "Sydney",
+      "nationality": "AU",
+      "avg_rating": 3.4
+    },
+    {
+      "destination": "Sydney",
+      "nationality": "DE",
+      "avg_rating": 3.0
+    }
+  ]
+}

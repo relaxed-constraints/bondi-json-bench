@@ -52,7 +52,7 @@ def test_destination_does_not_rewrite_statement(template):
     [
         lambda q: q["operations"].update({"match": {"paid": None}}),
         lambda q: q["operations"].update({"join": {}}),
-        lambda q: q["operations"]["group"].update({"by": ["tour_id"]}),
+        lambda q: q["operations"]["group"].update({"by": []}),
         lambda q: q["operations"]["group"].update({"by": "tour.._id"}),
         lambda q: q["operations"]["group"].update({"aggregates": {}}),
         lambda q: q["operations"]["group"].update({"aggregates": {"total": "count(total_price)"}}),
@@ -423,3 +423,51 @@ def test_q7_matches_corrected_jsonbench():
     assert template == Q7["template"]
     assert MongoAggregateQuery.from_json(mongo.to_json()) == mongo
     assert CouchbaseQuery.from_json(couch.to_json()) == couch
+
+
+Q8 = json.loads((Path(__file__).parent / "fixtures" / "q8_translation.json").read_text())
+
+
+def test_q8_matches_corrected_jsonbench():
+    template = copy.deepcopy(Q8["template"])
+    mongo = translate_mongodb(template, database="travel")
+    couch = translate_couchbase(template, bucket="travel")
+    assert mongo.pipeline == Q8["mongodb_pipeline"]
+    assert couch.statement == Q8["couchbase_statement"]
+    assert couch.query_context == "default:`travel`.`_default`"
+    assert template == Q8["template"]
+
+
+def test_joined_unnest_short_path():
+    template = copy.deepcopy(Q8["template"])
+    template["operations"]["unnest"][0]["field"] = "travellers"
+    before = copy.deepcopy(template)
+    assert translate_mongodb(template, database="travel").pipeline == Q8["mongodb_pipeline"]
+    assert translate_couchbase(template, bucket="travel").statement == Q8["couchbase_statement"]
+    assert template == before
+
+
+@pytest.mark.parametrize("by", [[], ["a.b", "a_b"], ["destination", "destination"], [None]])
+def test_invalid_composite_groups(by):
+    template = copy.deepcopy(Q8["template"])
+    template["operations"]["group"]["by"] = by
+    for translate, target in [
+        (translate_mongodb, {"database": "travel"}),
+        (translate_couchbase, {"bucket": "travel"}),
+    ]:
+        with pytest.raises(ValueError):
+            translate(template, **target)
+
+
+def test_single_element_group_list_preserves_object_key(template):
+    template["operations"]["group"]["by"] = ["tour_id"]
+    assert translate_mongodb(template, database="travel").pipeline[0]["$group"]["_id"] == {
+        "tour_id": "$tour_id"
+    }
+
+
+def test_composite_group_aggregate_collision():
+    template = copy.deepcopy(Q8["template"])
+    template["operations"]["group"]["aggregates"] = {"bookings_travellers_nationality": "count(*)"}
+    with pytest.raises(ValueError, match="collide"):
+        translate_couchbase(template, bucket="travel")

@@ -4,7 +4,7 @@ Translate a JSONBench template into native BONDI query objects. The supported te
 (average, minimum and maximum traveller age per tour), plus Q3
 (average traveller group size per booking, grouped by tour), and Q4
 (itinerary visits to a location, grouped by difficulty), plus Q5
-(average review rating per tour), Q6 (average traveller age per destination), and Q7 (traveller-visits per location).
+(average review rating per tour), Q6 (average traveller age per destination), Q7 (traveller-visits per location), and Q8 (traveller-weighted review ratings).
 Translation does not connect to a database, execute queries or create indexes.
 
 ```python
@@ -37,15 +37,15 @@ The template supplies the collection name. The other arguments supply its databa
 or bucket and scope. Each call returns a fresh BONDI object and leaves the template
 unchanged. Name and description are metadata and do not change the query.
 
-Use `group` with one simple or dotted field path for `by`. Aggregates support `sum`, `avg`,
+Use `group` with a simple or dotted field path, or a nonempty list of paths, for `by`. Aggregates support `sum`, `avg`,
 `min` and `max` over simple or dotted field paths, or `size(field)`. Add an optional `unnest` list
 before grouping. Each item is a path or `{"field": "travellers", "from": "bookings"}`.
-The optional `from` must name the primary collection. Each identifier component
+The optional `from` must name the primary or a joined collection. Each identifier component
 must match `[A-Za-z_][A-Za-z_0-9]*`.
 Equality filters use `match`, a mapping from field paths to non-null scalar values.
 Multiple predicates are combined with AND. Numbers must be finite.
 Use `count(*)` to count rows after array expansion and filtering.
-Other filters, sorting, limits, compound grouping and nested functions other than `size(field)` remain unsupported.
+Other filters, sorting, limits and nested functions other than `size(field)` remain unsupported.
 An aggregate alias cannot equal `_id` or the grouping output alias.
 
 Unsupported values raise `ValueError`. A non-dictionary template or non-string
@@ -76,13 +76,13 @@ MongoDB names the grouping field `_id`; Couchbase names it `tour_id`.
 
 ## Compatibility checks
 
-`tests/fixtures/q1_translation.json` `q2_translation.json` `q3_translation.json` `q4_translation.json` `q5_translation.json` `q6_translation.json` and `q7_translation.json` contain outputs captured from the
+`tests/fixtures/q1_translation.json` `q2_translation.json` `q3_translation.json` `q4_translation.json` `q5_translation.json` `q6_translation.json` `q7_translation.json` and `q8_translation.json` contain outputs captured from the
 corrected JSONBench translators. Each fixture records the source commit and file checksums.
 Tests compare the entire pipeline and SQL++ statement, plus BONDI destination metadata.
 They need no JSONBench checkout at runtime.
 
 These tests establish translation compatibility. The
-[walkthrough](../notebooks/walkthrough.ipynb) executes Q1–Q7 as one BONDI workload per backend
+[walkthrough](../notebooks/walkthrough.ipynb) executes Q1–Q8 as one BONDI workload per backend
 and compares tour IDs and aggregate values, ignoring row order. It uses relative tolerance
 1e-9 and absolute tolerance 1e-6 for floating-point sums.
 
@@ -152,8 +152,8 @@ Couchbase emits an inner `JOIN` and resolves joined fields through the source na
 Joins run before explicit array expansion, filtering and grouping.
 
 The public translation functions stay unchanged. The notebook adds Q5 and the
-original Couchbase `reviews-tour_id` index. Explicit `unnest.from` still supports
-only the primary collection; support for later templates remains a separate step.
+original Couchbase `reviews-tour_id` index. For joined arrays, `unnest.from` supplies the collection prefix if the field
+path does not already include it.
 Cross-database equivalence is checked on the generated scalar join keys. Missing,
 null or array-valued join keys are outside this equivalence claim.
 
@@ -202,3 +202,22 @@ JSONBENCH_LIVE=1 uv run pytest tests/test_q7_live.py -q
 
 It uses disposable deployments and the same ports as the Q5 live test. Run these
 live tests sequentially. The test removes its deployments afterward.
+
+## Q8: traveller-weighted review ratings
+
+Q8 joins tours to bookings and reviews, expands `bookings.travellers`, and groups
+by destination and traveller nationality. Every review is paired with every
+matching traveller. Nationality comes from the traveller, not the review author.
+
+For example, tour A has two AU travellers and ratings 2 and 4. Tour B at the same
+destination has one AU traveller and rating 5. Q8 averages [2, 4, 2, 4, 5], giving
+3.4. Tours without bookings or reviews do not contribute.
+
+Composite grouping uses an ordered list in `group.by`. MongoDB returns all keys
+inside `_id`; Couchbase returns separate fields. Dots become underscores in each
+alias. Duplicate aliases and collisions with aggregate names are rejected.
+A single-item list still produces an object `_id` in MongoDB, as in JSONBench.
+
+Run `JSONBENCH_LIVE=1 uv run pytest tests/test_q8_live.py -q` to check this weighting
+and a second nationality against both databases. It uses the same disposable
+ports as the other live tests; run them sequentially.
