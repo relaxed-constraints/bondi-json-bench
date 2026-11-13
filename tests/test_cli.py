@@ -207,8 +207,8 @@ def test_preparation_retry_stops_both_owned_databases(app, monkeypatch):
     )
     assert invoke("prepare", "--resume").exit_code == 0
     assert len(stopped) == 2
-    assert stopped[0].startswith("jsonbench-mongodb-cli-")
-    assert stopped[1].startswith("jsonbench-couchbase-cli-")
+    assert stopped[0] == "jsonbench-mongodb-test-sf-0-1"
+    assert stopped[1] == "jsonbench-couchbase-test-sf-0-1"
 
 
 def cleanup_fixture(app, monkeypatch):
@@ -295,3 +295,75 @@ def test_cleanup_rejects_unrelated_names(app, monkeypatch):
     cli._save(path, manifest)
     assert invoke("cleanup", "--yes").exit_code != 0
     assert not removed
+
+
+def test_readable_names_and_length_validation(app):
+    invoke, calls, root = app
+    assert invoke("prepare", "--scale-factor", "0.1,0.5").exit_code == 0
+    assert [c[2]["run_id"] for c in calls] == ["test-sf-0-1", "test-sf-0-5"]
+    assert cli._readable_id("My_Run", 10.0) == "my-run-sf-10"
+    with pytest.raises(Exception, match="shorter experiment name"):
+        cli._readable_id("x" * 40, 10.0)
+
+
+def test_new_experiment_rejects_existing_deployments(app, monkeypatch):
+    from types import SimpleNamespace
+
+    invoke, calls, root = app
+    monkeypatch.setattr(cli, "get_deployment", lambda name: SimpleNamespace(name=name))
+    result = invoke("prepare")
+    assert result.exit_code != 0
+    assert "already exists" in result.output
+    assert not calls
+    assert not root.exists()
+
+
+def test_legacy_resume_uses_manifest_identity_and_cleanup(app, monkeypatch):
+    from types import SimpleNamespace
+
+    invoke, calls, root = app
+    assert invoke("prepare").exit_code == 0
+    state = cli._read(root / "state.json")
+    state.pop("deployment_ids")
+    cell = state["preparations"]["sf-0.1"]
+    cell["status"] = "failed"
+    manifest_path = root / cell["attempts"][0]["path"] / "preparation.json"
+    legacy = "cli-b6e87af1ecbcd173"
+    manifest = cli._read(manifest_path)
+    manifest["experiment_id"] = legacy
+    manifest["deployments"] = {
+        b: {"name": f"jsonbench-{b}-{legacy}"} for b in ("mongodb", "couchbase")
+    }
+    cli._save(manifest_path, manifest)
+    cli._save(root / "state.json", state)
+    stopped, removed = [], []
+    monkeypatch.setattr(
+        cli,
+        "get_deployment",
+        lambda name: SimpleNamespace(
+            stop=lambda: stopped.append(name), remove=lambda: removed.append(name)
+        ),
+    )
+    assert invoke("prepare", "--resume").exit_code == 0
+    assert calls[-1][2]["run_id"] == legacy
+    assert set(stopped) == {f"jsonbench-{b}-{legacy}" for b in ("mongodb", "couchbase")}
+    assert invoke("cleanup", "--yes").exit_code == 0
+    assert set(removed) == set(stopped)
+    assert manifest_path.exists()
+
+
+def test_legacy_unstarted_scales_keep_hash_identity(app):
+    import hashlib
+
+    invoke, calls, root = app
+    assert invoke("prepare", "--scale-factor", "0.1,0.5").exit_code == 0
+    state = cli._read(root / "state.json")
+    state.pop("deployment_ids")
+    state["preparations"].pop("sf-0.5")
+    import shutil
+
+    shutil.rmtree(root / "preparations" / "sf-0.5")
+    cli._save(root / "state.json", state)
+    assert invoke("prepare", "--scale-factor", "0.1,0.5", "--resume").exit_code == 0
+    expected = "cli-" + hashlib.sha256(f"{root.resolve()}/sf-0.5".encode()).hexdigest()[:16]
+    assert calls[-1][2]["run_id"] == expected

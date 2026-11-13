@@ -62,6 +62,40 @@ def _scale_key(value):
     return str(int(value)) if value.is_integer() else str(value)
 
 
+def _readable_id(experiment, scale):
+    """Build a suffix that fits BONDI's 48-character deployment-name limit."""
+    label = experiment.lower().replace("_", "-")
+    scale_label = _scale_key(scale).replace(".", "-").replace("+", "plus")
+    suffix = f"{label}-sf-{scale_label}"
+    if len(f"jsonbench-couchbase-{suffix}") > 48:
+        raise click.BadParameter(
+            "Experiment name and scale factor exceed BONDI's 48-character deployment-name limit. "
+            "Choose a shorter experiment name."
+        )
+    return suffix
+
+
+def _preparation_ids(root, state):
+    """Recover legacy identities from saved manifests, with the old hash as fallback."""
+    if "deployment_ids" in state:
+        return state["deployment_ids"]
+    identities = {}
+    for key in state["preparation_plan"]["jobs"]:
+        attempts = state["preparations"].get(key, {}).get("attempts", [])
+        for attempt in reversed(attempts):
+            path = (root / attempt["path"] / "preparation.json").resolve()
+            if not path.is_relative_to(root):
+                raise click.ClickException(
+                    "Preparation manifest must be inside the experiment folder."
+                )
+            if path.exists():
+                identities[key] = _read(path)["experiment_id"]
+                break
+        else:
+            identities[key] = "cli-" + hashlib.sha256(f"{root}/{key}".encode()).hexdigest()[:16]
+    return identities
+
+
 def _root(experiment, results_dir):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", experiment):
         raise click.BadParameter(
@@ -266,6 +300,26 @@ def prepare(
                     "Output folder is not empty. Choose a new experiment name."
                 )
             state = {"schema_version": 1, "preparation_plan": plan, "preparations": {}, "runs": {}}
+            state["deployment_ids"] = {
+                key: _readable_id(experiment, config["scale_factor"])
+                for key, config in jobs.items()
+            }
+        identities = _preparation_ids(root, state)
+        state["deployment_ids"] = identities
+        # Check all unused names before preparing anything. BONDI would otherwise
+        # reuse an existing deployment and replacement loading could erase its data.
+        for key, suffix in identities.items():
+            if state["preparations"].get(key, {}).get("attempts"):
+                continue
+            for backend in ("mongodb", "couchbase"):
+                name = f"jsonbench-{backend}-{suffix}"
+                try:
+                    get_deployment(name)
+                except FileNotFoundError:
+                    continue
+                raise click.ClickException(
+                    f"Deployment {name} already exists. Choose a different experiment name."
+                )
         _progress(f"Prepare {len(jobs)} dataset pairs · {root}")
         if dry_run:
             for key in jobs:
@@ -276,18 +330,18 @@ def prepare(
         with _lock("bondi-json-bench-benchmark.lock"):
 
             def operation(key, config, directory):
-                suffix = hashlib.sha256(f"{root}/{key}".encode()).hexdigest()[:16]
+                suffix = identities[key]
                 if len(state["preparations"][key]["attempts"]) > 1:
                     # A killed preparation process may leave either backend running.
                     for backend in ("mongodb", "couchbase"):
                         try:
-                            deployment = get_deployment(f"jsonbench-{backend}-cli-{suffix}")
+                            deployment = get_deployment(f"jsonbench-{backend}-{suffix}")
                         except FileNotFoundError:
                             continue
                         deployment.stop()
                 prepare_databases(
                     config,
-                    run_id=f"cli-{suffix}",
+                    run_id=suffix,
                     indexes=plan["assets"]["indexes"],
                     output_dir=directory,
                     on_progress=_progress,

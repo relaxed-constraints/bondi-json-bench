@@ -19,6 +19,17 @@ Preparation creates one MongoDB/Couchbase pair for each scale factor. It loads
 the same generated documents into both databases, creates the baseline indexes,
 and stops both databases. Data volumes remain available for benchmarks.
 
+New deployments use the experiment name and scale factor, for example
+`jsonbench-mongodb-my-run-sf-0-1` and `jsonbench-couchbase-my-run-sf-0-1`.
+Names use lowercase letters and replace underscores and decimal points with
+hyphens. The full deployment name must fit BONDI's 48-character limit; shorten
+an experiment name if necessary. Existing deployment names cause an error before
+preparation starts, so a different results directory cannot silently reuse data.
+
+Existing experiments retain their hashed names. Resume reads their saved
+identities, and cleanup continues to use their recorded deployment names.
+
+
 ## Run the full matrix
 
 ```sh
