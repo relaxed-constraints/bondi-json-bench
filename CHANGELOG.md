@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Validate Q7 against corrected JSONBench and a live traveller-visit fixture.
+  Add Q7 to the notebook workloads; no new translation operators are needed.
+
 - Add Q6 dotted grouping paths with original MongoDB and Couchbase output shapes.
   Extend reference tests, documentation and notebook workload comparisons.
 

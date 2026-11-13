@@ -1,0 +1,62 @@
+{
+  "source_commit": "653367ce7e41d866489bae504fe963f8ee0d6758",
+  "source_sha256": {
+    "jsonbench/src/queries.json": "4812e86c309a8a517dd6522f7d6a97ae6052b4222e7e541bd9064376ee160aec",
+    "jsonbench/query_generator/template.py": "57d291b68929b61e4166653a6f9a683b215eabe4aaa34154df9c7ecd27bd02c9",
+    "jsonbench/query_generator/mdb_query_gen.py": "8c754c31ffcb28d3c3dbadf9cd4b26bcd8d7ea38568fe9a87f5719b8092194a3",
+    "jsonbench/query_generator/cb_query_gen.py": "e263966dda6b2877f012ec0eff53e521ace6e95d15f2001282c650de34d86cb7"
+  },
+  "template": {
+    "name": "Query 7",
+    "description": "Total traveller-visits per itinerary location",
+    "primary_collection": "tours",
+    "operations": {
+      "join": {
+        "from": "bookings",
+        "localField": "_id",
+        "foreignField": "tour_id"
+      },
+      "unnest": [
+        {
+          "field": "itinerary",
+          "from": "tours"
+        }
+      ],
+      "group": {
+        "by": "itinerary.location",
+        "aggregates": {
+          "total_travellers": "sum(size(bookings.travellers))"
+        }
+      }
+    }
+  },
+  "mongodb_pipeline": [
+    {
+      "$lookup": {
+        "from": "bookings",
+        "localField": "_id",
+        "foreignField": "tour_id",
+        "as": "bookings"
+      }
+    },
+    {
+      "$unwind": "$bookings"
+    },
+    {
+      "$unwind": "$itinerary"
+    },
+    {
+      "$group": {
+        "_id": {
+          "itinerary_location": "$itinerary.location"
+        },
+        "total_travellers": {
+          "$sum": {
+            "$size": "$bookings.travellers"
+          }
+        }
+      }
+    }
+  ],
+  "couchbase_statement": "SELECT `__unnest_0`.`location` AS `itinerary_location`, SUM(ARRAY_LENGTH(`bookings`.`travellers`)) AS `total_travellers` FROM `tours` JOIN `bookings` ON `tours`.`_id` = `bookings`.`tour_id` UNNEST `tours`.`itinerary` AS `__unnest_0` GROUP BY `__unnest_0`.`location`;"
+}

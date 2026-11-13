@@ -1,0 +1,87 @@
+{
+  "tours": [
+    {
+      "_id": "a",
+      "itinerary": [
+        {
+          "location": "X"
+        },
+        {
+          "location": "X"
+        },
+        {
+          "location": "Y"
+        }
+      ]
+    },
+    {
+      "_id": "b",
+      "itinerary": [
+        {
+          "location": "X"
+        }
+      ]
+    },
+    {
+      "_id": "unbooked",
+      "itinerary": [
+        {
+          "location": "Z"
+        }
+      ]
+    },
+    {
+      "_id": "empty",
+      "itinerary": []
+    }
+  ],
+  "bookings": [
+    {
+      "_id": "a1",
+      "tour_id": "a",
+      "travellers": [
+        {},
+        {},
+        {}
+      ]
+    },
+    {
+      "_id": "a2",
+      "tour_id": "a",
+      "travellers": [
+        {}
+      ]
+    },
+    {
+      "_id": "b1",
+      "tour_id": "b",
+      "travellers": [
+        {},
+        {}
+      ]
+    },
+    {
+      "_id": "b2",
+      "tour_id": "b",
+      "travellers": []
+    },
+    {
+      "_id": "e",
+      "tour_id": "empty",
+      "travellers": [
+        {}
+      ]
+    },
+    {
+      "_id": "orphan",
+      "tour_id": "absent",
+      "travellers": [
+        {}
+      ]
+    }
+  ],
+  "expected": {
+    "X": 10,
+    "Y": 4
+  }
+}

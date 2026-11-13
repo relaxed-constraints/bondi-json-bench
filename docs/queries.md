@@ -4,7 +4,7 @@ Translate a JSONBench template into native BONDI query objects. The supported te
 (average, minimum and maximum traveller age per tour), plus Q3
 (average traveller group size per booking, grouped by tour), and Q4
 (itinerary visits to a location, grouped by difficulty), plus Q5
-(average review rating per tour), and Q6 (average traveller age per destination).
+(average review rating per tour), Q6 (average traveller age per destination), and Q7 (traveller-visits per location).
 Translation does not connect to a database, execute queries or create indexes.
 
 ```python
@@ -76,13 +76,13 @@ MongoDB names the grouping field `_id`; Couchbase names it `tour_id`.
 
 ## Compatibility checks
 
-`tests/fixtures/q1_translation.json` `q2_translation.json` `q3_translation.json` `q4_translation.json` `q5_translation.json` and `q6_translation.json` contain outputs captured from the
+`tests/fixtures/q1_translation.json` `q2_translation.json` `q3_translation.json` `q4_translation.json` `q5_translation.json` `q6_translation.json` and `q7_translation.json` contain outputs captured from the
 corrected JSONBench translators. Each fixture records the source commit and file checksums.
 Tests compare the entire pipeline and SQL++ statement, plus BONDI destination metadata.
 They need no JSONBench checkout at runtime.
 
 These tests establish translation compatibility. The
-[walkthrough](../notebooks/walkthrough.ipynb) executes Q1–Q6 as one BONDI workload per backend
+[walkthrough](../notebooks/walkthrough.ipynb) executes Q1–Q7 as one BONDI workload per backend
 and compares tour IDs and aggregate values, ignoring row order. It uses relative tolerance
 1e-9 and absolute tolerance 1e-6 for floating-point sums.
 
@@ -181,3 +181,24 @@ Couchbase returns `{"tours_destination": "Sydney", "avg_age": 35}`.
 Dots become underscores in the output alias, as in corrected JSONBench.
 An aggregate alias must not collide with that output alias.
 The notebook normalises these grouping keys before comparing results.
+
+## Q7: traveller-visits per location
+
+Q7 joins tours to bookings, expands itinerary entries, and groups by
+`itinerary.location`. It sums `size(bookings.travellers)` for each location.
+Existing operators support this template without translation changes.
+
+Each booking contributes its traveller count once per itinerary entry. A booking
+with three travellers and two visits to the same location contributes six there.
+This counts traveller-visits, not distinct travellers. Tours without bookings,
+or with empty itineraries, contribute nothing. Empty traveller arrays add zero.
+
+The optional live test checks repeated locations, multiple bookings, empty arrays,
+an unbooked tour and an orphan booking:
+
+```sh
+JSONBENCH_LIVE=1 uv run pytest tests/test_q7_live.py -q
+```
+
+It uses disposable deployments and the same ports as the Q5 live test. Run these
+live tests sequentially. The test removes its deployments afterward.

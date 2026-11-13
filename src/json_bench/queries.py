@@ -1,4 +1,4 @@
-"""Translate the Q1–Q6 grouping subset into native BONDI query objects."""
+"""Translate the Q1–Q7 grouping subset into native BONDI query objects."""
 
 import json
 import math

@@ -407,3 +407,19 @@ def test_dotted_group_on_primary_collection(template):
     statement = translate_couchbase(template, bucket="travel").statement
     assert "`bookings`.`details`.`region` AS `details_region`" in statement
     assert statement.endswith("GROUP BY `bookings`.`details`.`region`;")
+
+
+Q7 = json.loads((Path(__file__).parent / "fixtures" / "q7_translation.json").read_text())
+
+
+def test_q7_matches_corrected_jsonbench():
+    template = copy.deepcopy(Q7["template"])
+    mongo = translate_mongodb(template, database="travel")
+    couch = translate_couchbase(template, bucket="travel")
+    assert mongo.pipeline == Q7["mongodb_pipeline"]
+    assert mongo.target == MongoCollectionRef("travel", "tours")
+    assert couch.statement == Q7["couchbase_statement"]
+    assert couch.query_context == "default:`travel`.`_default`"
+    assert template == Q7["template"]
+    assert MongoAggregateQuery.from_json(mongo.to_json()) == mongo
+    assert CouchbaseQuery.from_json(couch.to_json()) == couch
