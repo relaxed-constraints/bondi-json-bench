@@ -55,3 +55,9 @@ benchmark Python API used by both Yanex scripts.
 ## License
 
 [MIT](LICENSE).
+
+## Command-line benchmark
+
+Use `json-bench prepare` and `json-bench benchmark` to run single combinations or
+a full matrix without Yanex. See the [CLI guide](docs/cli.md) for commands,
+settings, and resume behavior.

@@ -2,7 +2,7 @@
 
 `json_bench.experiment` runs preparation and benchmarks without importing Yanex.
 The scripts in `experiments/` supply Yanex parameters, dependencies and output callbacks.
-No CLI is included yet.
+The [CLI](cli.md) uses the same functions for standalone matrices.
 
 ## Prepare databases
 

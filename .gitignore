@@ -17,3 +17,7 @@ data/
 artifacts/
 
 *.pdf
+
+# CLI results and package builds
+results/
+dist/
