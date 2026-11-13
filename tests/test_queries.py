@@ -57,7 +57,7 @@ def test_destination_does_not_rewrite_statement(template):
         lambda q: q["operations"]["group"].update({"aggregates": {}}),
         lambda q: q["operations"]["group"].update({"aggregates": {"total": "count(*)"}}),
         lambda q: q["operations"]["group"].update(
-            {"aggregates": {"total": "sum(size(travellers))"}}
+            {"aggregates": {"total": "sum(avg(travellers))"}}
         ),
         lambda q: q["operations"]["group"].update({"aggregates": {"_id": "sum(total_price)"}}),
         lambda q: q["operations"]["group"].update({"aggregates": {"tour_id": "sum(total_price)"}}),
@@ -163,3 +163,65 @@ def test_unnest_alias_does_not_collide_with_collection():
     template["primary_collection"] = "__unnest_0"
     template["operations"]["unnest"] = ["travellers"]
     assert "AVG(`__unnest_0_`.`age`)" in translate_couchbase(template, bucket="travel").statement
+
+
+Q3 = json.loads((Path(__file__).parent / "fixtures" / "q3_translation.json").read_text())
+
+
+def test_q3_matches_corrected_jsonbench():
+    template = copy.deepcopy(Q3["template"])
+    mongo = translate_mongodb(template, database="travel")
+    couch = translate_couchbase(template, bucket="travel")
+    assert mongo.pipeline == Q3["mongodb_pipeline"]
+    assert mongo.target == MongoCollectionRef("travel", "bookings")
+    assert couch.statement == Q3["couchbase_statement"]
+    assert couch.query_context == "default:`travel`.`_default`"
+    assert template == Q3["template"]
+    assert MongoAggregateQuery.from_json(mongo.to_json()) == mongo
+    assert CouchbaseQuery.from_json(couch.to_json()) == couch
+
+
+@pytest.mark.parametrize("aggregate", ["sum", "avg", "min", "max"])
+def test_size_of_nested_field(aggregate):
+    template = copy.deepcopy(Q3["template"])
+    template["operations"]["group"]["aggregates"] = {
+        "value": f" {aggregate.upper()}( SIZE( details.travellers ) ) "
+    }
+    mongo = translate_mongodb(template, database="travel")
+    assert mongo.pipeline[0]["$group"]["value"] == {
+        "$" + aggregate: {"$size": "$details.travellers"}
+    }
+    assert f"{aggregate.upper()}(ARRAY_LENGTH(`bookings`.`details`.`travellers`))" in (
+        translate_couchbase(template, bucket="travel").statement
+    )
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "avg(size())",
+        "avg(size(size(travellers)))",
+        "avg(avg(travellers))",
+        "size(travellers)",
+        "avg(size(travellers), 2)",
+        "avg(size(travellers); DROP)",
+    ],
+)
+@pytest.mark.parametrize("backend", ["mongodb", "couchbase"])
+def test_invalid_nested_expression(expression, backend):
+    template = copy.deepcopy(Q3["template"])
+    template["operations"]["group"]["aggregates"] = {"value": expression}
+    with pytest.raises(ValueError):
+        if backend == "mongodb":
+            translate_mongodb(template, database="travel")
+        else:
+            translate_couchbase(template, bucket="travel")
+
+
+def test_size_resolves_unnested_field():
+    template = copy.deepcopy(Q3["template"])
+    template["operations"]["unnest"] = ["travellers"]
+    template["operations"]["group"]["aggregates"] = {"value": "avg(size(travellers.children))"}
+    assert "AVG(ARRAY_LENGTH(`__unnest_0`.`children`))" in (
+        translate_couchbase(template, bucket="travel").statement
+    )

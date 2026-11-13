@@ -1,4 +1,4 @@
-"""Translate the Q1 and Q2 grouping subset into native BONDI query objects."""
+"""Translate the Q1–Q3 grouping subset into native BONDI query objects."""
 
 import re
 
@@ -12,7 +12,7 @@ def _identifier(value, label):
     """Validate a simple name and return it unchanged.
 
     Names can contain letters, digits and underscores, but cannot start with a
-    digit. Dotted paths and query expressions are outside this initial subset.
+    digit. Validate dotted field paths separately with _path.
     The label identifies the invalid input in the ValueError message.
     """
     if not isinstance(value, str) or not _IDENTIFIER.fullmatch(value):
@@ -47,12 +47,38 @@ def _unnests(operations, primary):
     return paths
 
 
+def _expression(value):
+    """Parse an aggregate over a field or size(field).
+
+    Represent each part as (operator, argument). For example, avg(size(items))
+    becomes ("avg", ("size", ("field", "items"))). Only one size call is allowed.
+    """
+    if not isinstance(value, str):
+        raise TypeError("Aggregate expression must be a string")
+
+    match = re.fullmatch(r"(\w+)\((.*)\)", value.strip())
+    if not match or match[1].lower() not in {"sum", "avg", "min", "max"}:
+        raise ValueError(
+            "Supported aggregates are sum, avg, min and max over a field or size(field)"
+        )
+
+    argument = match[2].strip()
+    nested = re.fullmatch(r"(\w+)\((.*)\)", argument)
+    if nested:
+        if nested[1].lower() != "size":
+            raise ValueError("Only size(field) is supported inside an aggregate")
+        operand = ("size", ("field", _path(nested[2].strip())))
+    else:
+        operand = ("field", _path(argument))
+    return match[1].lower(), operand
+
+
 def _group(template):
     """Validate the shared grouping subset and extract its parts.
 
     Return the primary collection, grouping field, aggregate expressions and array
-    paths. Each expression is a (function, field) pair. Both translators use this
-    representation.
+    paths. Expressions contain nested (operator, argument) pairs. Both translators
+    use this representation.
 
     The input template is only read, never changed. Unsupported structures raise
     ValueError. Incorrect template or expression types raise TypeError.
@@ -88,15 +114,7 @@ def _group(template):
         if alias in {by, "_id"}:
             raise ValueError("Aggregate alias must not collide with the group field or _id")
 
-        # Match the original parser's whitespace handling and case-insensitive functions.
-        if not isinstance(expr, str):
-            raise TypeError("Aggregate expression must be a string")
-
-        match = re.fullmatch(r"(\w+)\((.*)\)", expr.strip())
-        if not match or match[1].lower() not in {"sum", "avg", "min", "max"}:
-            raise ValueError("Supported aggregates are sum, avg, min and max over a field")
-
-        expressions[alias] = (match[1].lower(), _path(match[2].strip()))
+        expressions[alias] = _expression(expr)
 
     return primary, by, expressions, unnests
 
@@ -106,7 +124,7 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
 
     Args:
         template: Original JSONBench template. Supports group and optional unnest, one simple
-            grouping field, and sum/avg/min/max over field paths.
+            grouping field, and sum/avg/min/max over field paths or size(field).
         database: MongoDB database name, expressed as a simple identifier.
 
     Returns:
@@ -121,10 +139,17 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
     _identifier(database, "database")
     primary, by, expressions, unnests = _group(template)
 
-    # MongoDB stores the grouping key in _id and uses $-prefixed field references.
+    def compile_node(node):
+        """Translate a field or function to its native MongoDB expression."""
+        operator, argument = node
+        if operator == "field":
+            return "$" + argument
+        return {"$" + operator: compile_node(argument)}
+
+    # MongoDB stores the grouping key in _id.
     group_stage = {"_id": "$" + by}
-    for alias, (function, field) in expressions.items():
-        group_stage[alias] = {"$" + function: "$" + field}
+    for alias, expression in expressions.items():
+        group_stage[alias] = compile_node(expression)
 
     return MongoAggregateQuery(
         target=MongoCollectionRef(database, primary),
@@ -177,9 +202,17 @@ def translate_couchbase(template: dict, *, bucket: str, scope: str = "_default")
         clauses.append(f"UNNEST {resolve(path)} AS {quoted(alias)}")
         replacements[path] = alias
 
+    def compile_node(node):
+        """Resolve fields and translate size to SQL++ ARRAY_LENGTH."""
+        operator, argument = node
+        if operator == "field":
+            return resolve(argument)
+        function = "ARRAY_LENGTH" if operator == "size" else operator.upper()
+        return f"{function}({compile_node(argument)})"
+
     fields = [f"{resolve(by)} AS {quoted(by)}"]
-    for alias, (function, field) in expressions.items():
-        fields.append(f"{function.upper()}({resolve(field)}) AS {quoted(alias)}")
+    for alias, expression in expressions.items():
+        fields.append(f"{compile_node(expression)} AS {quoted(alias)}")
 
     # Keep the original statement form. The context supplies its bucket and scope.
     parts = [f"SELECT {', '.join(fields)} FROM {quoted(primary)}", *clauses]

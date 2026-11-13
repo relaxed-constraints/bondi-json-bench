@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add Q3 array-length aggregates with corrected JSONBench reference tests.
+  Include Q3 in the walkthrough workloads and result comparison.
+
 - Support Q2 array expansion, nested fields and average/minimum/maximum aggregates.
   Preserve corrected JSONBench output and run Q1/Q2 as BONDI workloads in the walkthrough.
 
