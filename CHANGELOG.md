@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add pure load-result summaries with measurement-window throughput, successful
+  runtimes, outcome counts and explicit early-stop indicators. Use them in the walkthrough.
+
 - Add native single-field index helpers and experiment baseline definitions.
   Prepare MongoDB and Couchbase indexes before notebook workloads, with conflict
   checks, repeat-call support and Couchbase readiness waits.

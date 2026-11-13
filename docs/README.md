@@ -4,3 +4,5 @@
 - [Query translation](queries.md): Q1–Q8 templates and native BONDI query objects.
 
 - [Baseline indexes](indexes.md): prepare the experiment indexes in both databases.
+
+- [Load summaries](analysis.md): throughput, runtimes and outcomes for one run.
