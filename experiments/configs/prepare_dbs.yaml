@@ -1,0 +1,14 @@
+scale_factor: 0.1
+seed: 23
+reference_date: "2025-11-01"
+# MiB for container limits and Couchbase quotas; GiB for WiredTiger.
+memory_limit_mb: 24576
+wiredtiger_cache_size_gb: 12
+couchbase_data_mb: 8192
+couchbase_index_mb: 4096
+mongodb_version: "8.2.1"
+couchbase_version: "8.0.0"
+mongodb_port: 27147
+couchbase_management_port: 18491
+couchbase_query_port: 18493
+couchbase_kv_port: 21430
