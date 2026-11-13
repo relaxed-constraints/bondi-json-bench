@@ -2,7 +2,7 @@
 
 import argparse
 
-from empty_project.hello import hello_world
+from json_bench.hello import hello_world
 
 
 def main() -> None:
