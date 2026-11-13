@@ -16,6 +16,8 @@ dependencies = [
     "ipykernel>=7.4.0",
     "bondi[couchbase]==0.3.0",
     "faker==38.3.0",
+    "zensical>=0.1.1,<0.2",
+    "mkdocstrings-python>=2.0.10",
 ]
 
 [project.scripts]

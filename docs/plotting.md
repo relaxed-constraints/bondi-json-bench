@@ -1,112 +1,56 @@
-# Plot query runtimes and outcomes
+# Reading the figures
 
-Prepare one analysis per backend, then pass those analyses to either plotting
-function. Both functions return a Matplotlib Figure. They do not display figures,
-save files or change global plotting settings.
+The CLI and analysis notebook call the same plotting functions. Figures use
+200 DPI by default. MongoDB is blue and Couchbase is orange in runtime and
+throughput charts. Scale factors and client counts come from the selected runs.
+
+## Throughput and mean runtime
+
+`plot_client_scaling()` creates one column per scale factor. The top row shows
+throughput; the bottom row shows mean successful query runtime. Lines show means
+across repetitions. Shading spans the minimum and maximum repetition values,
+not a standard deviation or confidence interval.
+
+Successful runtime includes drain completions. Throughput counts only successful
+measurement admissions completed inside the measurement window. See the
+[metric definitions](analysis.md) for the exact rules.
+
+## Outcome percentages and heatmaps
+
+`plot_outcome_percentages()` shows success, error, timeout, and unresolved shares.
+Percentages are averaged per run; they are not calculated from pooled counts.
+
+`plot_failure_heatmaps()` shows the mean error-plus-timeout percentage. Unresolved
+attempts remain in the denominator but are not counted as errors or timeouts.
+Missing combinations have no value; they are not treated as zero failures.
+
+## Per-query distributions
+
+`plot_cohort_query_runtimes()` produces separate figures for each scale factor,
+plus one for all scale factors. It pools successful runtime samples across client
+counts and repetitions. Boxes show quartiles and the median. Whiskers use the
+5th and 95th percentiles. Outlier markers are hidden, but samples are retained.
+
+`plot_cohort_query_outcomes()` uses the same grouping and pools absolute outcome
+counts. It does not normalize the bars. Colors identify outcomes and hatches
+identify databases. Use counts to understand how much evidence each query has.
+
+## Use the functions from Python
+
+All plotting functions return Matplotlib figures without displaying or saving
+them. For example:
 
 ```python
-from IPython.display import display
+from json_bench.plotting import plot_client_scaling
 
-from json_bench.analysis import analyse_load_results
-from json_bench.plotting import plot_query_outcomes, plot_query_runtimes
-
-analyses = {
-    label: analyse_load_results(
-        load_results[backend],
-        query_labels=[f"Q{i}" for i in range(1, 9)],
-        warmup_seconds=WARMUP_SECONDS,
-        measurement_seconds=MEASUREMENT_SECONDS,
-    )
-    for backend, label in [("mongodb", "MongoDB"), ("couchbase", "Couchbase")]
-}
-
-runtime_figure = plot_query_runtimes(analyses)
-outcome_figure = plot_query_outcomes(analyses)
-display(runtime_figure)
-display(outcome_figure)
-# Optional: save an artifact from the notebook or Yanex experiment.
-runtime_figure.savefig("query_runtimes.png", dpi=200, bbox_inches="tight")
+figure = plot_client_scaling(cohort.runs)
+figure.savefig("clients_by_scale.png", dpi=200, bbox_inches="tight")
 ```
 
-## API
+`plot_query_runtimes()` and `plot_query_outcomes()` compare aligned single-run
+`LoadAnalysis` objects. They do not pool configurations. Their labels mark
+observed early termination. Runtime plots reject nonpositive samples on a log
+axis; use `log_scale=False` when needed.
 
-```python
-plot_query_runtimes(
-    analyses: Mapping[str, LoadAnalysis],
-    *,
-    log_scale: bool = True,
-    whisker_percentiles: tuple[float, float] = (5, 95),
-    figsize: tuple[float, float] = (10, 5),
-    fontsize: float = 12,
-    dpi: float = 200,
-) -> Figure
-
-plot_query_outcomes(
-    analyses: Mapping[str, LoadAnalysis],
-    *,
-    figsize: tuple[float, float] = (10, 5),
-    fontsize: float = 12,
-    dpi: float = 200,
-) -> Figure
-```
-
-The mapping keys are display labels. Its order determines backend order in the
-charts and legends. Query positions and labels must match across all analyses;
-otherwise the functions raise ValueError. Supply runs from the configuration you
-want to compare. The functions cannot verify scale factors or client counts and
-do not pool configurations or repetitions. Observed early-stopped runs are
-labelled in the legends.
-
-## Runtime distribution
-
-The runtime chart uses separate boxes for each backend at each query. Boxes show
-the 25th and 75th percentiles, with a black median line. Whiskers use the 5th and
-95th percentile convention from the old JSONBench charts. Outlier markers are
-hidden; their samples remain in the analysis statistics.
-
-Only successful measurement admissions contribute samples, including successful
-drain completions. The runtime unit is seconds. MongoDB is blue and Couchbase is
-orange. Queries without successes show "No successes" instead of a box.
-
-The default y-axis is logarithmic with ordinary numeric labels. Zero samples
-cannot appear on a log axis: the function raises ValueError rather than silently
-removing them. Use `log_scale=False` if zero runtimes are present. The whisker
-percentiles must bracket the 25th and 75th percentiles.
-
-## Outcome counts
-
-The outcome chart has one stacked bar per backend per query. Colors identify
-success, error, timeout and unresolved. Hatches identify backends. The legend
-uses one row for outcome colors and a second row for backend hatches.
-
-These are absolute attempt counts, not percentages or throughput. They include
-all outcomes for measurement admissions, including draining. Warm-up admissions
-are excluded. A zero-height bar means no measurement admissions for that query.
-Use this chart alongside successful runtimes to see failure rates and sample
-counts before drawing performance conclusions.
-
-## Cohort charts
-
-`notebooks/analysis.ipynb` selects completed Yanex runs with `yr.compare()`.
-Keep that selection limited to runs with the same workload and execution settings.
-The plotting functions do not check protocol equivalence.
-
-`prepare_cohort(runs, summaries, per_query)` combines run metadata with the saved
-`summary.json` and `per_query.json` artifacts. The dictionaries use experiment IDs
-as keys. The metadata table needs `backend`, `clients` and `scale_factor` columns.
-
-- `plot_client_scaling(runs)` plots throughput and mean runtime. Repetitions have
-  equal weight, with minimum–maximum shading.
-- `plot_outcome_percentages(cohort)` plots mean run-level outcome percentages.
-- `plot_failure_heatmaps(cohort)` plots mean run-level error plus timeout rates.
-  Unresolved attempts remain in the denominator but are not errors or timeouts.
-- `plot_cohort_query_runtimes(cohort)` pools successful runtime samples across
-  clients and repetitions. Boxes show quartiles, medians and 5th–95th percentiles.
-- `plot_cohort_query_outcomes(cohort)` pools outcome counts across clients and
-  repetitions. It does not normalize them.
-
-All figures use 200 DPI by default. Scale factors and client counts come from the
-selected data. Missing combinations are not treated as zero failure rates.
-The last two functions return a dictionary of separate figures: one per scale
-factor and an additional figure under the `None` key for all scale factors.
-Functions return figures without displaying or saving them.
+See the [plotting API](reference/plotting.md), or use
+[`json-bench plot`](reference/cli/plot.md) to export the whole figure set.

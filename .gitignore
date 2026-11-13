@@ -21,3 +21,7 @@ artifacts/
 # CLI results and package builds
 results/
 dist/
+
+# Documentation build
+site/
+.cache/

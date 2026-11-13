@@ -60,11 +60,11 @@ JSONBench generator. The reference file records the source commit, source-file
 checksum, Faker version and inputs. It requires no JSONBench checkout at test time.
 Update reference hashes only after explicitly agreeing to change compatibility.
 
-## Memory and next steps
+## Memory and loading
 
 All documents are held in memory. Scale 200 produces 1.74 million documents,
 including nested travellers and review text, so large datasets can need substantial memory.
 
-The underlying generator is private. Streaming and persistence are future steps.
-The [walkthrough notebook](../notebooks/walkthrough.ipynb) loads the same generated
-dataset into MongoDB and Couchbase through BONDI. No custom dataset class is required.
+The generator returns all documents in memory; it does not stream them.
+`notebooks/walkthrough.ipynb` in the checkout loads the same generated dataset
+into MongoDB and Couchbase through BONDI. See the [data API](reference/data.md).

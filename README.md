@@ -1,69 +1,45 @@
 # BONDI JSON Bench
 
+An analytical document database benchmark built on BONDI. Generate travel data,
+run MongoDB and Couchbase workloads, and compare throughput, runtimes, and outcomes.
+
+The CLI runs individual combinations or a sequential matrix. Yanex scripts support
+tracked research experiments using the same execution functions.
+
+## Documentation
+
+Start with the [documentation home](docs/index.md) or [quickstart](docs/quickstart.md).
+Installation instructions and evaluation results are placeholders while the
+reviewer setup and full matrix are prepared.
+
+| Goal | Guide |
+| --- | --- |
+| Run the CLI | [CLI workflow](docs/cli.md) |
+| Track experiments with Yanex | [Yanex workflow](docs/yanex.md) |
+| Understand the benchmark | [Benchmark design](docs/design.md) |
+| Use Python functions | [API reference](docs/reference/index.md) |
+| Extend the project | [Development](docs/development/index.md) |
+
+Preview the site from an existing development checkout:
+
+```sh
+uv run zensical serve --dev-addr 127.0.0.1:8001
+```
+
+See [Build the documentation](docs/development/documentation.md) for reference
+page generation and strict checks.
 
 ## Repository structure
 
 | Directory | Purpose |
 | --- | --- |
-| `docs/` | Space for project notes and instructions. |
-| `experiments/` | Thin Yanex adapters for shared experiment execution. |
-| `experiments/configs/` | Preparation and benchmark parameters. |
-| `notebooks/` | Future analysis notebooks. |
-| `results/` | Use this directory to store experiment results and create progress update slides. |
-| `src/json_bench/` | Core library for `bondi-json-bench`, including travel data generation, query translation, and analysis. |
-| `tests/` | JSONBench compatibility and data-generation tests. |
-
-
-## Setup
-
-### 1. Open the local checkout
-
-This repository is currently a local checkout. No new GitHub repository has been created:
-
-```sh
-cd ~/code/bondi-json-bench
-```
-
-### 2. Install dependencies and run tests
-
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run
-these commands from this directory:
-
-#### Using `uv`:
-
-```sh
-uv sync --locked     # installs dependencies
-uv run pytest        # runs the unit tests
-uv run ruff check    # runs the linter to check code style
-uv run ruff format   # formats the code according to the linter rules
-```
-
-#### Using `pip`:
-
-In an activated Python virtual environment:
-
-```sh
-pip install -r requirements.txt
-pytest        # runs the unit tests
-ruff check    # runs the linter to check code style
-ruff format   # formats the code according to the linter rules
-```
-
-See [Shared experiment execution](docs/experiments.md) for the preparation and
-benchmark Python API used by both Yanex scripts.
+| `src/json_bench/` | Generation, translation, execution, analysis, plotting, and CLI |
+| `experiments/` | Yanex scripts, configuration, templates, and indexes |
+| `notebooks/` | Walkthrough and cohort analysis |
+| `tests/` | Unit, compatibility, and optional live tests |
+| `docs/` | Zensical documentation source |
+| `results/` | Local CLI outputs, excluded from Git |
 
 ## License
 
 [MIT](LICENSE).
-
-## Command-line benchmark
-
-Use `json-bench prepare` and `json-bench benchmark` to run single combinations or
-a full matrix without Yanex. See the [CLI guide](docs/cli.md) for commands,
-settings, and resume behavior.
-
-Use `json-bench cleanup --experiment <name>` to remove an experiment’s database
-deployments and data after confirmation. Logs and result artifacts remain on disk.
-
-Run `json-bench plot --experiment <name>` to generate the notebook-style figures
-as PNG and PDF files under the experiment's `figures/` folder.

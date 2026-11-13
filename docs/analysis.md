@@ -1,110 +1,77 @@
-# Summarise sustained load
+# Execution and metrics
 
-```python
-from json_bench.analysis import summarise_load_results
+BONDI generates sustained load with one query in flight per client. Clients select
+queries with the configured weights and submit another after completion.
+The benchmark runs warm-up, measurement, and draining in that order.
 
-summary = summarise_load_results(
-    load_results["mongodb"],
-    warmup_seconds=5,
-    measurement_seconds=15,
-)
-print(summary.throughput_queries_per_second)
-```
+## Measurement window
 
-## API
+Let `W` be warm-up duration and `M` measurement duration. A query belongs to the
+measurement sample if it starts in `[W, W + M)`. Queries started during warm-up
+are excluded, even if they finish during measurement. No new queries are admitted
+after measurement; draining gives in-flight queries time to finish.
 
-`summary = summarise_load_results(results, *, warmup_seconds,
-measurement_seconds)` returns a frozen `LoadSummary` dataclass.
-Supply the complete retained BONDI result list from one run, including warm-up
-and failures. Duplicate attempt IDs are rejected. Do not combine repetitions.
-The function does not access files, databases, pandas or plotting libraries.
+| Metric | Definition |
+| --- | --- |
+| Throughput | Successful measurement admissions completed before `W + M`, divided by `M` |
+| Mean runtime | Mean execution time of successful measurement admissions, including drain completions |
+| Median runtime | Median of those same successful execution times |
+| Success, error, timeout counts | Final outcomes of measurement admissions, including draining |
+| Unresolved count | Measurement admissions with no execution result, including drain expiry |
 
-Measurement is `[warmup_seconds, warmup_seconds + measurement_seconds)`.
-Admissions at the start are included; admissions at the end are not valid.
-Warm-up admissions are excluded even when they finish during measurement.
+Runtime is BONDI's `ExecutionResult.elapsed_ms / 1000`. It excludes the health
+preflight and differs from `LoadResult.duration`, which includes that preflight.
+Errors, timeouts, and unresolved attempts do not enter runtime statistics.
+No successful samples produces `None`, not zero.
 
-| Field | Definition |
-|---|---|
-| measurement_seconds | Configured measurement duration |
-| measurement_admissions | All attempts admitted during measurement |
-| successes_within_window | Measurement admissions that succeed before the window ends |
-| throughput_queries_per_second | successes_within_window divided by measurement_seconds |
-| mean_runtime_seconds, median_runtime_seconds | Successful measurement admissions, including drain completions |
-| success_count, error_count, timeout_count | Final outcomes of measurement admissions, including draining |
-| unresolved_count | Measurement admissions without an execution result |
-| early_terminated | An explicit query_error or database_unavailable stop reason was observed |
-| stop_reasons | Distinct stop reasons across all phases, including warm-up |
+The four outcome counts sum to measurement admissions. A success during draining
+contributes to successful runtime and outcome counts, but not throughput.
 
-Runtime uses `ExecutionResult.elapsed_ms / 1000`, excluding health preflight.
-It does not use `LoadResult.duration`, which includes that preflight. Failed,
-timed-out and unresolved attempts are excluded from runtime statistics. No
-successful samples yields None, not zero. Drain expiry remains unresolved.
-The four outcome counts sum to measurement_admissions.
+## Early termination
 
-Early-stop evidence never shortens the throughput denominator. Treat flagged
-runs separately from full-duration runs. Stop reasons from warm-up also flag the
-run. Drain expiry alone does not mean admissions stopped early; inspect the
-unresolved count separately.
+A `query_error` or `database_unavailable` stop reason flags early termination,
+even if it occurs during warm-up. The throughput denominator remains the configured
+measurement duration. The runner saves partial evidence, then reports failure.
+Cohort analysis rejects early-stopped summaries.
 
-The input list cannot prove that the caller retained every observation. In
-particular, an empty list does not establish successful completion. The
-`early_terminated` field reports explicit evidence, not a completeness guarantee.
-No finite sample of successful runtimes describes timed-out query durations;
-report failures alongside runtime metrics to avoid hiding that selection effect.
+Drain expiry alone is not an early-admission stop. Inspect unresolved counts
+separately. An empty result list does not prove that a full run completed, and
+analysis cannot detect observations that the caller failed to retain.
 
-## Per-query analysis
+## Per-query summaries
+
+`analyse_load_results()` returns a run summary and one summary per workload entry.
+Labels remain present even when a query has no admissions. Per-query counts sum
+to the run counts. Run runtime statistics use all successful samples, not an
+average of per-query means or medians.
 
 ```python
 from json_bench.analysis import analyse_load_results
 
 analysis = analyse_load_results(
-    load_results["mongodb"],
+    results,
     query_labels=[f"Q{i}" for i in range(1, 9)],
-    warmup_seconds=WARMUP_SECONDS,
-    measurement_seconds=MEASUREMENT_SECONDS,
+    warmup_seconds=60,
+    measurement_seconds=180,
 )
 print(analysis.summary.throughput_queries_per_second)
-print(analysis.queries[0].median_runtime_seconds)
 ```
 
-### API
+Supply retained BONDI results from one run, including warm-up and failures.
+Duplicate attempt IDs and invalid workload positions are rejected. See the
+[analysis API](reference/analysis.md) for all fields and functions.
 
-```python
-analyse_load_results(
-    results: Sequence[LoadResult],
-    *,
-    query_labels: Sequence[str],
-    warmup_seconds: float,
-    measurement_seconds: float,
-) -> LoadAnalysis
-```
+## Repetitions and cohorts
 
-`LoadAnalysis` is a frozen dataclass with two fields:
+`prepare_cohort()` combines saved run summaries and per-query artifacts with
+backend, client count, and scale-factor metadata. It checks outcome totals,
+query labels, and successful sample counts. The caller must select compatible
+workloads and execution settings.
 
-- `summary`: the same `LoadSummary` returned by `summarise_load_results()`.
-- `queries`: a tuple of `QuerySummary` objects in workload order.
+Scaling charts give each repetition equal weight. Their shading spans the
+minimum and maximum run values. Outcome percentages are averaged per run.
+Per-query distributions and count charts pool samples and counts across the
+selected runs. See [Reading the figures](plotting.md).
 
-`QuerySummary` contains `workload_position`, `label`, `measurement_admissions`,
-`successes_within_window`, `success_count`, `error_count`, `timeout_count`,
-`unresolved_count`, `mean_runtime_seconds`, `median_runtime_seconds`, and
-`successful_runtime_seconds` (a tuple of samples).
-
-Supply one unique, nonblank label per workload entry, including unused entries.
-Out-of-range positions raise ValueError, including positions on warm-up records.
-A query with no measurement admissions remains present with zero counts, None
-means/medians and an empty sample tuple. A query with only failures also has no
-successful runtime samples.
-
-The same accounting code calculates run and query metrics. Per-query outcome
-counts and in-window successes sum to their run totals. Run mean and median use
-all successful samples; they are not averages of the per-query statistics.
-Warm-up samples are excluded. Successful measurement admissions completed during
-draining are included in runtime samples, but not in throughput.
-
-Early termination and stop reasons remain run-level information. A failure from
-one query can stop admissions for every query. Do not interpret an empty sample
-as evidence that a query was fast or successful.
-
-This API describes one run. It does not pool repetitions, scale factors or client
-counts. Pandas can turn summaries into tables in the notebook or experiment code;
-the analysis module itself has no pandas, plotting or database connection logic.
+Always report outcomes alongside runtime. Timeouts can remove slow queries from
+the successful sample and make the mean runtime appear lower.

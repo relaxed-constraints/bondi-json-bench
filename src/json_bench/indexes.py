@@ -27,7 +27,7 @@ def ensure_mongodb_indexes(database, indexes: dict[str, list[str]]) -> None:
     """Ensure separate ascending indexes on each listed field.
 
     Args:
-        database: Native pymongo Database. The caller owns its client.
+        database (pymongo.database.Database): Native pymongo Database. The caller owns its client.
         indexes: Collection-to-fields mapping. Fields are simple names, not paths.
 
     Existing matching named indexes are reused. Conflicting definitions raise
@@ -59,9 +59,9 @@ def ensure_couchbase_indexes(scope, indexes: dict[str, list[str]], *, timeout_se
     """Ensure separate secondary indexes and wait for each to be online.
 
     Args:
-        scope: Native couchbase Scope. The caller owns its cluster connection.
+        scope (couchbase.scope.Scope): Native couchbase Scope. The caller owns its cluster connection.
         indexes: Collection-to-fields mapping. Fields are simple names, not paths.
-        timeout_seconds: Positive finite timeout for each management operation.
+        timeout_seconds (float): Positive finite timeout for each management operation.
 
     Names use collection-field, with _id named id to match corrected JSONBench.
     Conflicting named indexes raise ValueError. Other indexes are left untouched.

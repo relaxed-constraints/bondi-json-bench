@@ -18,7 +18,7 @@ from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions
 from pymongo import MongoClient
 
-from json_bench.analysis import analyse_load_results, load_result_record
+from json_bench.analysis import LoadAnalysis, analyse_load_results, load_result_record
 from json_bench.data import generate_travel_dataset
 from json_bench.deployment import configure_couchbase
 from json_bench.indexes import ensure_couchbase_indexes, ensure_mongodb_indexes
@@ -95,22 +95,22 @@ def prepare_databases(
     on_progress=_print_progress,
     on_artifact=None,
     on_metrics=None,
-):
+) -> dict:
     """Generate and load travel data into two sequential, stopped deployments.
 
     Args:
-        params: Complete nested preparation configuration, with no implicit defaults.
-        run_id: Caller-selected suffix for deployment names and manifest identity.
-        indexes: Backend-to-collection-to-fields index definitions.
-        output_dir: Directory for JSON artifacts when on_artifact is omitted.
-        on_progress: Receives progress strings. Defaults to flushed console output.
-        on_artifact: Optional synchronous callback(value, filename) that saves JSON.
+        params (dict): Complete nested preparation configuration, with no implicit defaults.
+        run_id (str): Caller-selected suffix for deployment names and manifest identity.
+        indexes (dict): Backend-to-collection-to-fields index definitions.
+        output_dir (str | Path): Directory for JSON artifacts when on_artifact is omitted.
+        on_progress (Callable): Receives progress strings. Defaults to flushed console output.
+        on_artifact (Callable | None): Optional synchronous callback(value, filename) that saves JSON.
             It replaces the default JSON writer; it must not mutate its inputs.
-        on_metrics: Optional synchronous callback receiving the final metric dict.
+        on_metrics (Callable | None): Optional synchronous callback receiving the final metric dict.
 
     Returns:
-        The ready preparation manifest. The format and experiment_id field remain
-        compatible with existing runs; run_id need not be a Yanex experiment ID.
+        The ready preparation manifest, including the experiment_id field.
+            run_id need not be a Yanex experiment ID.
 
     Failures save a failed manifest and propagate. Created deployments are stopped
     but retained, including partial data. Run preparation separately from benchmarks.
@@ -224,23 +224,23 @@ def run_benchmark(
     on_artifact=None,
     on_metrics=None,
     on_result=None,
-):
+) -> LoadAnalysis:
     """Run one backend/client combination against a prepared deployment pair.
 
     Args:
-        manifest: Ready preparation manifest returned by prepare_databases.
-        params: Complete nested benchmark configuration, with no implicit defaults.
-        scale_factor: Preparation scale factor, recorded as benchmark metadata.
-        templates: Q1 through Q8 template dictionaries. Inputs are not modified.
-        output_dir: Artifact directory, including streamed load_results.jsonl.
-        on_progress: Receives progress strings. Defaults to flushed console output.
-        on_artifact: Optional callback(value, filename) replacing JSON artifact writes.
-        on_metrics: Optional callback receiving scalar summary metrics.
-        on_result: Optional callback receiving each BONDI LoadResult after persistence.
+        manifest (dict): Ready preparation manifest returned by prepare_databases.
+        params (dict): Complete nested benchmark configuration, with no implicit defaults.
+        scale_factor (float): Preparation scale factor, recorded as benchmark metadata.
+        templates (list[dict]): Q1 through Q8 template dictionaries. Inputs are not modified.
+        output_dir (str | Path): Artifact directory, including streamed load_results.jsonl.
+        on_progress (Callable): Receives progress strings. Defaults to flushed console output.
+        on_artifact (Callable | None): Optional callback(value, filename) replacing JSON artifact writes.
+        on_metrics (Callable | None): Optional callback receiving scalar summary metrics.
+        on_result (Callable | None): Optional callback receiving each BONDI LoadResult after persistence.
 
     Returns:
-        LoadAnalysis with run and per-query summaries. Both prepared databases are
-        stopped before measurement; the selected database is stopped on exit.
+        Run and per-query summaries. Both prepared databases stop before measurement.
+            The selected database stops on exit.
 
     The host lock prevents concurrent benchmark calls. Observations are flushed
     during execution. Early termination saves summaries and metrics, then raises
