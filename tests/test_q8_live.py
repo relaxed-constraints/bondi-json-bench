@@ -17,6 +17,7 @@ from bondi.mongodb import MongoCollectionRef, MongoExecutor
 from couchbase.n1ql import QueryScanConsistency
 
 from json_bench.queries import translate_couchbase, translate_mongodb
+from json_bench.validate import compare_results
 
 
 @pytest.mark.skipif(os.environ.get("JSONBENCH_LIVE") != "1", reason="requires local Docker")
@@ -55,6 +56,7 @@ def test_q8_weighted_join_live():
                 ]
                 for r in result.documents
             } == pytest.approx(expected)
+        mongo_result = result
         query = translate_couchbase(template, bucket="travel")
         with CouchbaseExecutor.from_uri(
             couch.uri, username=couch.username, password=couch.password, timeout_seconds=60
@@ -79,6 +81,7 @@ def test_q8_weighted_join_live():
                 (r["destination"], r["bookings_travellers_nationality"]): r["avg_rating"]
                 for r in result.documents
             } == pytest.approx(expected)
+        compare_results(template, mongo_result, result)
     finally:
         if couch is not None:
             couch.remove()

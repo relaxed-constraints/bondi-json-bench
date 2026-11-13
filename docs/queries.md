@@ -320,3 +320,23 @@ propagate. A non-object JSON value raises ValueError with the file path.
 The walkthrough finds the template directory from the repository root or
 `notebooks/`. It overrides Q4's location only in memory, using the generated data.
 The saved template retains the original paper parameter.
+
+## Compare grouped results
+
+```python
+from json_bench.validate import compare_results
+
+compare_results(template, mongo_result, couchbase_result)
+```
+
+`compare_results(template, mongo_result, couchbase_result, *, rel_tol=1e-9,
+abs_tol=1e-6) -> None` checks successful executions with collected documents.
+It normalises grouping keys, requires the same fields and groups, and compares
+numeric aggregates with the configured tolerance. Duplicate groups fail. Matching
+empty results pass. Set a separate nonempty expectation when a fixture requires it.
+
+Without sorting, row order is ignored. With sorting, group order must match;
+use unique sort keys to avoid legitimate differences between tied rows.
+Failures raise AssertionError with query and mismatch details. Ungrouped templates
+raise ValueError. Projection and scan comparisons remain in the operator test
+suite and are not part of this helper's contract. Inputs are not modified.

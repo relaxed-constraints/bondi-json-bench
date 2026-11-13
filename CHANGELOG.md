@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Extract grouped result comparison into json_bench.validate.compare_results,
+  with execution checks, numeric tolerances, duplicate detection and sort checks.
+  Use the helper in the walkthrough.
+
 - Move the paper templates to experiments/templates and load them by path in the
   walkthrough. Add a generic load_template() helper with file and object checks.
 
