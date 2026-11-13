@@ -141,6 +141,12 @@ The function returns Python dictionaries in memory. It does not write files or
 connect to a database. See the [data generation guide](docs/data.md) for the API
 and compatibility rules.
 
+## Translate Q1
+
+Use `translate_mongodb()` and `translate_couchbase()` from `json_bench.queries`
+to produce native BONDI query objects. See the [translation guide](docs/queries.md).
+Only Q1-style grouping and sums are currently supported.
+
 ## Walkthrough notebook
 
 Open [notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) and select this
@@ -157,7 +163,7 @@ to preview and export it. Replace the demo title and examples with your own work
 
 ## Next steps
 
-BONDI is pinned to 0.3.0. Experiment scripts and query translation will be added
+BONDI is pinned to 0.3.0. Experiment scripts and translation beyond Q1 will be added
 separately. The walkthrough already demonstrates loading into both databases.
 
 ## License

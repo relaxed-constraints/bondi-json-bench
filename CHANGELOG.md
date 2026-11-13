@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add Q1 MongoDB and Couchbase translation functions returning BONDI query objects.
+  Test exact compatibility with corrected JSONBench output and reject unsupported
+  operations. Add API documentation and a non-executing walkthrough example.
+
 - Compact the walkthrough into shared deployment, loading and cleanup cells.
 
 - Add Couchbase deployment and loading to the walkthrough, using the same generated
