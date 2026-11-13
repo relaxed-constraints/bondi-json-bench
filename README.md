@@ -144,9 +144,10 @@ and compatibility rules.
 ## Walkthrough notebook
 
 Open [notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) and select this
-project's `.venv/bin/python` kernel. It generates travel data, deploys MongoDB locally, and loads each collection through
-BONDI. Start Docker before running the deployment cell. The last cell removes
-the deployment and its data.
+project's `.venv/bin/python` kernel. It generates travel data, deploys MongoDB and Couchbase locally, and loads the same
+dataset into both through BONDI. Start Docker before the deployment cells. Run
+`uv sync --locked` to install the Couchbase SDK. The final cleanup cells remove
+both deployments and their data.
 
 ## Progress updates
 
@@ -156,8 +157,8 @@ to preview and export it. Replace the demo title and examples with your own work
 
 ## Next steps
 
-BONDI is pinned to 0.3.0. Database loading, experiment scripts and query
-translation will be added separately.
+BONDI is pinned to 0.3.0. Experiment scripts and query translation will be added
+separately. The walkthrough already demonstrates loading into both databases.
 
 ## License
 

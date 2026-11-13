@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add Couchbase deployment and loading to the walkthrough, using the same generated
+  dataset as MongoDB. Include the BONDI Couchbase extra and separate cleanup.
+
 - Extend the walkthrough with local MongoDB deployment, per-collection BONDI
   loading and an explicit cleanup cell.
 

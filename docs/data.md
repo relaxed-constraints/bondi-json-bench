@@ -65,5 +65,6 @@ Update reference hashes only after explicitly agreeing to change compatibility.
 All documents are held in memory. Scale 200 produces 1.74 million documents,
 including nested travellers and review text, so large datasets can need substantial memory.
 
-The underlying generator is private. Streaming, persistence and BONDI loading
-are separate future steps. No custom dataset class is required.
+The underlying generator is private. Streaming and persistence are future steps.
+The [walkthrough notebook](../notebooks/walkthrough.ipynb) loads the same generated
+dataset into MongoDB and Couchbase through BONDI. No custom dataset class is required.
