@@ -141,6 +141,11 @@ The function returns Python dictionaries in memory. It does not write files or
 connect to a database. See the [data generation guide](docs/data.md) for the API
 and compatibility rules.
 
+## Walkthrough notebook
+
+Open [notebooks/walkthrough.ipynb](notebooks/walkthrough.ipynb) and select this
+project's `.venv/bin/python` kernel. It starts with the travel-data generation example.
+
 ## Progress updates
 
 Start with [the example slide deck](results/week-1/presentation.md). Install
