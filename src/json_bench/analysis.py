@@ -242,3 +242,33 @@ def analyse_load_results(
         summary=_run_summary(measurement, reasons, warmup_seconds, measurement_seconds),
         queries=tuple(queries),
     )
+
+
+def load_result_record(observation: LoadResult) -> dict:
+    """Return a JSON-safe observation without documents or native diagnostics.
+
+    Keep failure types, but omit exception messages because drivers can include
+    credentials. Unresolved observations have no execution result. All offsets
+    are seconds from the start of generate_load(), including warm-up.
+    """
+    result = observation.result
+    return {
+        "attempt_id": observation.attempt_id,
+        "client_id": observation.client_id,
+        "client_sequence": observation.client_sequence,
+        "workload_position": observation.workload_position,
+        "phase_started": observation.phase_started,
+        "admitted_seconds": observation.admitted_seconds,
+        "ended_seconds": observation.ended_seconds,
+        "query_started": observation.query_started,
+        "stop_reason": observation.stop_reason,
+        "result": None
+        if result is None
+        else {
+            "status": result.status,
+            "elapsed_ms": result.elapsed_ms,
+            "row_count": result.row_count,
+            "health_check_elapsed_ms": result.health_check_elapsed_ms,
+            "error_type": type(result.error).__name__ if result.error else None,
+        },
+    }
