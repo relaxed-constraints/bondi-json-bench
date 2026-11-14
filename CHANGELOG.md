@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Document installation from GitHub with uv or pip and an activated environment.
+
 - Use published BONDI 0.3.1 and remove the editable sibling dependency.
 - Add offline CI on Python 3.11–3.14 and GitHub Pages deployment after CI passes.
 

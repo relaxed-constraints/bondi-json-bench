@@ -23,5 +23,4 @@ from Click command definitions; update them after changing options or defaults.
 Use `--check` on the reference generator to detect stale pages.
 
 Use short sentences, active verbs, and concrete examples. Keep metric definitions
-in the benchmark-design section and link to them from guides. Keep installation
-and results marked as placeholders until their instructions and evidence are ready.
+in the benchmark-design section and link to them from guides. Keep results marked as a placeholder until the evidence is ready.

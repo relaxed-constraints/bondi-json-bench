@@ -1,7 +1,7 @@
 # Quickstart
 
-This example runs a small functional check. It assumes a working development
-checkout; the [installation page](installation.md) is still a placeholder.
+This example runs a small functional check. First follow the
+[installation instructions](installation.md).
 Run these commands from the repository root. Start Docker first.
 
 ## Activate your Python environment
@@ -29,7 +29,7 @@ source .venv/bin/activate
 
 If your development checkout already has a `.venv`, activate that environment
 instead of creating another one. See [Installation](installation.md) for the
-status of the complete setup instructions.
+complete setup instructions.
 
 ## Prepare a small dataset
 

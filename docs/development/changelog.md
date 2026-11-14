@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add installation instructions for uv and pip, with a link to the quickstart.
+
 - Use published BONDI 0.3.1 instead of an editable sibling checkout.
 - Add offline CI and automatic documentation deployment to GitHub Pages.
 
@@ -9,4 +11,4 @@
 - Added readable deployment names while retaining identities for existing experiments.
 - Added this documentation site with CLI guides, benchmark design, and API reference.
 
-Installation instructions and the evaluation results remain placeholders.
+Evaluation results remain a placeholder.

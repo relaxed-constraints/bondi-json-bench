@@ -9,8 +9,8 @@ tracked research experiments using the same execution functions.
 ## Documentation
 
 Start with the [documentation home](https://relaxed-constraints.github.io/bondi-json-bench/) or [quickstart](docs/quickstart.md).
-Installation instructions and evaluation results are placeholders while the
-reviewer setup and full matrix are prepared.
+Follow the [installation guide](docs/installation.md) to set up a checkout with
+uv or pip. Evaluation results remain a placeholder while the full matrix is prepared.
 
 | Goal | Guide |
 | --- | --- |
