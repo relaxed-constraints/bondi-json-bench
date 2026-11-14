@@ -2,34 +2,8 @@
 
 This example runs a small functional check. First follow the
 [installation instructions](installation.md).
-Run these commands from the repository root. Start Docker first.
 
-## Activate your Python environment
-
-The command examples assume an activated Python environment with this project
-and its dependencies installed.
-
-If you need a new environment, create it with either command:
-
-```sh
-python -m venv .venv
-```
-
-Or, if you use uv:
-
-```sh
-uv venv .venv
-```
-
-Activate it on macOS or Linux:
-
-```sh
-source .venv/bin/activate
-```
-
-If your development checkout already has a `.venv`, activate that environment
-instead of creating another one. See [Installation](installation.md) for the
-complete setup instructions.
+Run these commands from the repository root after installing dependencies and activating your Python environment. Start Docker first.
 
 ## Prepare a small dataset
 
@@ -46,7 +20,7 @@ available; use the [preparation options](reference/cli/prepare.md) to change it.
 
 ```sh
 json-bench benchmark --experiment quickstart --clients 2 \
-  --warmup-seconds 2 --measurement-seconds 10 --drain-timeout-seconds 65
+  --warmup-seconds 5 --measurement-seconds 30 --drain-timeout-seconds 15
 ```
 
 The databases run one at a time. These short timings test the workflow; they are

@@ -23,7 +23,7 @@ uv or pip. Evaluation results remain a placeholder while the full matrix is prep
 Preview the site from an existing development checkout with its Python environment
 activated and dependencies installed. You can create an environment with
 `python -m venv .venv` or `uv venv .venv`; see the
-[activation instructions](docs/quickstart.md#activate-your-python-environment).
+[activation instructions](docs/installation.md#create-an-environment-and-install).
 
 ```sh
 zensical serve --dev-addr 127.0.0.1:8001

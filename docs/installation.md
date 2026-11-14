@@ -1,6 +1,6 @@
 # Installation
 
-Install BONDI JSON Bench from its GitHub repository. The checkout includes the
+Install _BONDI JSON Bench_ from its GitHub repository. The checkout includes the
 CLI, experiment definitions, notebooks, and documentation.
 
 ## Requirements
@@ -15,8 +15,6 @@ database to use up to 24 GiB of memory. Docker needs enough memory for this cap
 and other running containers. You can change the database memory settings with
 [preparation options](reference/cli/prepare.md).
 
-You do not need Docker to install the project or plot saved results.
-
 ## Clone the repository
 
 ```sh
@@ -25,6 +23,8 @@ cd bondi-json-bench
 ```
 
 ## Create an environment and install
+
+The instructions in this documentation assume an activated Python environment with this project and its dependencies installed.
 
 Choose either uv or pip. Run these commands from the repository root.
 

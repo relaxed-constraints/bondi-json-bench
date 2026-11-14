@@ -2,7 +2,7 @@
 
 The commands assume an activated Python environment with the required packages
 installed. Use `python -m venv .venv` or `uv venv .venv` to create one if needed;
-see [Activate your Python environment](../quickstart.md#activate-your-python-environment).
+see [Create an environment and install](../installation.md#create-an-environment-and-install).
 
 Run checks from the repository root:
 

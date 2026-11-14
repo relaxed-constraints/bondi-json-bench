@@ -1,5 +1,72 @@
 # Architecture
 
+## Overview
+
+The _BONDI JSON Bench_ architecture has three layers. This repository contains the **consumers**
+(the CLI, Yanex scripts, notebooks and tests) and the **JSON Bench core API**. The
+consumers use the core API to prepare data, run experiments, and analyse results.
+
+**BONDI** is a separate package dependency, installed with the project. It provides
+database deployments, data loading, native queries, workloads, and query execution.
+The core API builds on these features and adds the benchmark-specific logic.
+
+```mermaid
+---
+config:
+  block:
+    padding: 6
+---
+block
+  columns 1
+  block:consumers
+    columns 1
+    block:consumerComponents
+      CLI["Command-line<br/>interface"]
+      Yanex["Yanex scripts"]
+      Notebooks["Notebooks"]
+      Tests["Unit & integration tests"]
+    end
+    consumersLabel["Consumers"]
+  end
+  block:JSONBench
+    columns 1
+    block:jsonBenchComponents
+      columns auto
+      JD["Data generation"]
+      JT["Template loading<br/>& translation"]
+      JP["Database setup<br/>& indexes"]
+      JE["Benchmark<br/>execution"]
+      JA["Analysis & plotting"]
+    end
+    jsonBenchLabel["JSON Bench core API"]
+  end
+  block:BONDI
+    columns 1
+    block:bondiComponents
+      BDp["Deployments"]
+      BDa["Data loading"]
+      BQ["Native queries"]
+      BW["Workloads"]
+      BL["Executors &<br/>load generation"]
+    end
+    bondiLabel["BONDI"]
+  end
+  style consumers fill:#f6f6f6,stroke:#000,stroke-width:1px,stroke-dasharray:2 3
+  style consumerComponents fill:transparent,stroke:none
+  style consumersLabel fill:transparent,stroke:none,font-weight:bold
+  style JSONBench fill:#f6f6f6,stroke:#000,stroke-width:1px,stroke-dasharray:2 3
+  style BONDI fill:#f6f6f6,stroke:#000,stroke-width:1px,stroke-dasharray:2 3
+  style jsonBenchComponents fill:transparent,stroke:none
+  style bondiComponents fill:transparent,stroke:none
+  style jsonBenchLabel fill:transparent,stroke:none,font-weight:bold
+  style bondiLabel fill:transparent,stroke:none,font-weight:bold
+```
+
+## Core Components
+
+The core API is implemented as a Python package under `src/json_bench`.
+Its functionality is grouped into separate modules, as shown below.
+
 | Component | Responsibility |
 | --- | --- |
 | `data.py` | Generate travel documents without database or file access |

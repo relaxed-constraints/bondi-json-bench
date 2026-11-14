@@ -5,7 +5,7 @@ Yanex. BONDI manages the local Docker deployments. Start Docker before running
 preparation. These examples assume an activated Python environment with the
 project installed. Create an environment with `python -m venv .venv` or
 `uv venv .venv`, then activate it as shown in the
-[quickstart](quickstart.md#activate-your-python-environment).
+[installation guide](installation.md#create-an-environment-and-install).
 
 ## Run one combination
 
