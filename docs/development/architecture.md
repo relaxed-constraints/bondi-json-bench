@@ -43,7 +43,7 @@ block
   block:BONDI
     columns 1
     block:bondiComponents
-      BDp["Deployments"]
+      BDp["Database<br/>Deployments"]
       BDa["Data loading"]
       BQ["Native queries"]
       BW["Workloads"]
@@ -51,15 +51,17 @@ block
     end
     bondiLabel["BONDI"]
   end
-  style consumers fill:#f6f6f6,stroke:#000,stroke-width:1px,stroke-dasharray:2 3
+  classDef component fill:var(--jb-node-bg),stroke:var(--jb-node-border),color:var(--jb-diagram-text)
+  class CLI,Yanex,Notebooks,Tests,JD,JT,JP,JE,JA,BDp,BDa,BQ,BW,BL component
+  style consumers fill:var(--jb-frame-bg),stroke:var(--jb-frame-border),stroke-width:1px,stroke-dasharray:2 3
   style consumerComponents fill:transparent,stroke:none
-  style consumersLabel fill:transparent,stroke:none,font-weight:bold
-  style JSONBench fill:#f6f6f6,stroke:#000,stroke-width:1px,stroke-dasharray:2 3
-  style BONDI fill:#f6f6f6,stroke:#000,stroke-width:1px,stroke-dasharray:2 3
+  style consumersLabel fill:transparent,stroke:none,color:var(--jb-diagram-text),font-weight:bold
+  style JSONBench fill:var(--jb-frame-bg),stroke:var(--jb-frame-border),stroke-width:1px,stroke-dasharray:2 3
+  style BONDI fill:var(--jb-frame-bg),stroke:var(--jb-frame-border),stroke-width:1px,stroke-dasharray:2 3
   style jsonBenchComponents fill:transparent,stroke:none
   style bondiComponents fill:transparent,stroke:none
-  style jsonBenchLabel fill:transparent,stroke:none,font-weight:bold
-  style bondiLabel fill:transparent,stroke:none,font-weight:bold
+  style jsonBenchLabel fill:transparent,stroke:none,color:var(--jb-diagram-text),font-weight:bold
+  style bondiLabel fill:transparent,stroke:none,color:var(--jb-diagram-text),font-weight:bold
 ```
 
 ## Core Components
