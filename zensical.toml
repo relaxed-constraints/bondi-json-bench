@@ -5,7 +5,7 @@ repo_name = "relaxed-constraints/bondi-json-bench"
 site_name = "BONDI JSON Bench"
 site_description = "An analytical document database benchmark built on BONDI"
 copyright = "Copyright &copy; 2026 Relaxed Constraints"
-extra_css = ["stylesheets/markdown-copy.css", "stylesheets/diagrams.css"]
+extra_css = ["stylesheets/markdown-copy.css", "stylesheets/diagrams.css", "stylesheets/results.css"]
 nav = [
  { "Home" = "index.md" },
  { "Getting started" = [{ "Installation" = "installation.md" }, { "Quickstart" = "quickstart.md" }] },
