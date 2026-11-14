@@ -8,7 +8,7 @@ tracked research experiments using the same execution functions.
 
 ## Documentation
 
-Start with the [documentation home](docs/index.md) or [quickstart](docs/quickstart.md).
+Start with the [documentation home](https://relaxed-constraints.github.io/bondi-json-bench/) or [quickstart](docs/quickstart.md).
 Installation instructions and evaluation results are placeholders while the
 reviewer setup and full matrix are prepared.
 
@@ -20,10 +20,13 @@ reviewer setup and full matrix are prepared.
 | Use Python functions | [API reference](docs/reference/index.md) |
 | Extend the project | [Development](docs/development/index.md) |
 
-Preview the site from an existing development checkout:
+Preview the site from an existing development checkout with its Python environment
+activated and dependencies installed. You can create an environment with
+`python -m venv .venv` or `uv venv .venv`; see the
+[activation instructions](docs/quickstart.md#activate-your-python-environment).
 
 ```sh
-uv run zensical serve --dev-addr 127.0.0.1:8001
+zensical serve --dev-addr 127.0.0.1:8001
 ```
 
 See [Build the documentation](docs/development/documentation.md) for reference

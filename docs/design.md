@@ -24,10 +24,3 @@ from slower queries timing out and leaving the successful sample.
 
 Use the [metric definitions](analysis.md) when interpreting figures. Use the
 [query descriptions](queries.md) to understand joins, array expansion, and weighting.
-
-## Comparison limits
-
-Database settings, indexes, hardware, and query selection affect the results.
-A benchmark result applies to that setup. Baseline indexes are not a claim that
-either database has been fully tuned. The equivalence checks cover specific
-fixtures and operator combinations; they are not a proof for all input data.

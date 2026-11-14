@@ -5,7 +5,7 @@ Choose the workflow that fits your task.
 | Workflow | Use it for |
 | --- | --- |
 | [CLI](cli.md) | Run one combination or a full matrix, resume, plot, and clean up |
-| [Yanex](yanex.md) | Track exploratory runs, use dependencies, and select result cohorts |
+| [Yanex](yanex.md) | Track exploratory runs and select result cohorts for comparisons |
 | [Troubleshooting](troubleshooting.md) | Inspect failures without losing evidence |
 
 Both workflows use the same data generator, translators, and execution functions.

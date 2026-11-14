@@ -1,8 +1,7 @@
 # Query templates
 
 A template describes a query without choosing a database language. The translator
-returns a MongoDB aggregation query or a Couchbase SQL++ query. Translation does
-not connect to a database, execute the query, or create indexes.
+returns a MongoDB aggregation query or a Couchbase SQL++ query.
 
 The benchmark templates live in `experiments/templates/q1.json` through `q8.json`.
 

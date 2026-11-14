@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Use published BONDI 0.3.1 and remove the editable sibling dependency.
+- Add offline CI on Python 3.11–3.14 and GitHub Pages deployment after CI passes.
+
 - Add per-query runtime and outcome plots to the walkthrough using retained load results.
 
 - Add workload-ordered per-query summaries and successful runtime samples using

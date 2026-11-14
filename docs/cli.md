@@ -2,56 +2,55 @@
 
 `json-bench` prepares travel data and benchmarks MongoDB and Couchbase without
 Yanex. BONDI manages the local Docker deployments. Start Docker before running
-preparation. Install the project with `uv sync`, then prefix the commands below
-with `uv run` when using the checkout.
+preparation. These examples assume an activated Python environment with the
+project installed. Create an environment with `python -m venv .venv` or
+`uv venv .venv`, then activate it as shown in the
+[quickstart](quickstart.md#activate-your-python-environment).
 
 ## Run one combination
 
-Choose an experiment name. The CLI saves data preparation details and results
+A single run consists of a combination of scale factor (specified during preparation), backend, and client count (both specified during benchmarking).
+
+Choose an experiment name (here `my-run`). The CLI saves data preparation details and results
 under `results/<experiment>/`.
 
+First, prepare the database deployments, datasets and indexes:
 ```sh
 json-bench prepare --experiment my-run --scale-factor 10
+```
+
+Then, using the same experiment name, run the benchmark:
+```sh
 json-bench benchmark --experiment my-run --backend mongodb --clients 8
 ```
 
-Preparation creates one MongoDB/Couchbase pair for each scale factor. It loads
+Preparation creates one MongoDB/Couchbase pair for the chosen scale factor. It loads
 the same generated documents into both databases, creates the baseline indexes,
 and stops both databases. Data volumes remain available for benchmarks.
-
-New deployments use the experiment name and scale factor, for example
-`jsonbench-mongodb-my-run-sf-0-1` and `jsonbench-couchbase-my-run-sf-0-1`.
-Names use lowercase letters and replace underscores and decimal points with
-hyphens. The full deployment name must fit BONDI's 48-character limit; shorten
-an experiment name if necessary. Existing deployment names cause an error before
-preparation starts, so a different results directory cannot silently reuse data.
-
-Existing experiments retain their hashed names. Resume reads their saved
-identities, and cleanup continues to use their recorded deployment names.
 
 
 ## Run the full matrix
 
+Specify comma-separated values for scale factors, backends, and client counts to run the full matrix.
+
 ```sh
-json-bench prepare --experiment paper-run --scale-factor 10,100,200
-json-bench benchmark --experiment paper-run \
+json-bench prepare --experiment my-run --scale-factor 10,100,200
+
+json-bench benchmark --experiment my-run \
   --backend mongodb,couchbase --clients 2,4,8,16,32,64 --repetitions 3
 ```
 
 This runs 108 combinations: three scale factors, two backends, six client counts,
 and three repetitions. Benchmarks use all prepared scale factors unless you
-supply `--scale-factor`. Each command accepts a single value or a comma-separated
-list for its matrix dimensions.
+supply `--scale-factor` in the benchmark command.
 
 Runs execute sequentially: backend, scale factor, repetition, then client count.
 Only the selected database runs during each measurement. The CLI stops it after
-that run. Repetition 1 uses seed 23 by default; later repetitions increment the
+that run. Repetition 1 uses a default random seed `23` by default, later repetitions increment the
 seed. Each combination records its effective seed and settings.
 
-Stop unrelated database workloads before measurement. These commands do not stop
-unrelated deployments. CLI operations share a host lock. Preparation also checks
-the shared benchmark lock, so it cannot overlap a Yanex benchmark. Yanex
-preparation scripts do not acquire this lock; do not run them concurrently.
+CLI operations share a host lock to prevent concurrent access to the same
+database deployments from different benchmarks.
 
 ## Preview and resume
 
@@ -59,16 +58,14 @@ Add `--dry-run` to either command to show its planned combinations without
 starting databases or writing result files. Benchmark preview requires completed
 preparation so it can resolve available scale factors.
 
-If a command fails or is interrupted, repeat it with `--resume`:
+If a `benchmark` command fails or is interrupted, repeat it with `--resume`:
 
 ```sh
-json-bench benchmark --experiment paper-run \
+json-bench benchmark --experiment my-run \
   --backend mongodb,couchbase --clients 2,4,8,16,32,64 --repetitions 3 --resume
 ```
 
-Resume skips completed combinations. Query errors and timeouts are benchmark
-outcomes: a completed run containing them is not retried. A failed or interrupted
-run gets a new attempt folder. Earlier observations and error details remain on
+Resume skips completed combinations. Earlier observations and error details remain on
 disk. The command stops at the first infrastructure or execution failure. Resolve
 its cause before resuming. Do not resume while an earlier process is still running.
 
@@ -84,7 +81,9 @@ Use `json-bench prepare --help` and `json-bench benchmark --help` for all option
 There is no configuration-file interface. Both commands accept `--results-dir`
 (default `results`). Use the same directory and experiment name in both commands.
 
-Preparation defaults match the current Yanex preparation settings:
+### Preparation Settings
+
+Preparation defaults are set to these values:
 
 | Setting | Default | Option |
 | --- | --- | --- |
@@ -100,15 +99,27 @@ Preparation defaults match the current Yanex preparation settings:
 
 Docker needs enough memory for these allocations and service overhead. Port
 options are available for both backends. The defaults are 27147 for MongoDB and
-18491/18493/21430 for Couchbase management/query/KV. Each dataset pair reuses these
-ports because pairs run sequentially. Do not start several pairs together.
+18491/18493/21430 for Couchbase management/query/KV.
 
-Benchmark defaults are two clients, both backends, one repetition, 60 seconds of
-warm-up, 180 seconds of measurement, and up to 60 seconds of draining. Query and
-health-check timeouts are 60 seconds. Startup has a separate 300-second timeout.
-Use `--warmup-seconds`, `--measurement-seconds`, `--drain-timeout-seconds`,
-`--timeout-seconds`, `--health-check-timeout-seconds`, and
-`--startup-timeout-seconds` to change them.
+### Benchmark Settings
+
+Benchmark defaults:
+
+| Setting | Default | Option |
+| --- | --- | --- |
+| Scale factors | All prepared scale factors | `--scale-factor` |
+| Backends | MongoDB and Couchbase | `--backend` |
+| Concurrent clients | 2 | `--clients` |
+| Repetitions | 1 | `--repetitions` |
+| Selection seed | 23; increments for each repetition | `--seed` |
+| Warm-up duration | 60 seconds | `--warmup-seconds` |
+| Measurement duration | 180 seconds | `--measurement-seconds` |
+| Maximum drain duration | 60 seconds | `--drain-timeout-seconds` |
+| Query timeout | 60 seconds | `--timeout-seconds` |
+| Health-check timeout | 60 seconds | `--health-check-timeout-seconds` |
+| Database startup timeout | 300 seconds | `--startup-timeout-seconds` |
+| Q1–Q8 selection weights | `1,1,1,1,1,1,1,1` | `--weights` |
+| Q4 location | `Donnafurt` | `--q4-location` |
 
 `--weights` takes eight nonnegative numbers in Q1–Q8 order. The default gives each
 query equal weight. For example, `--weights 3,1,1,1,1,1,1,1` selects Q1 three times
@@ -119,7 +130,7 @@ package and copied into the experiment state.
 ## Saved results
 
 ```text
-results/paper-run/
+results/my-run/
   state.json
   preparations/sf-10/attempt-1/
     params.json
@@ -148,7 +159,7 @@ ordinary files; they are not registered as Yanex experiments.
 When you no longer need the database data, run:
 
 ```sh
-json-bench cleanup --experiment paper-run
+json-bench cleanup --experiment my-run
 ```
 
 Use the same `--results-dir` as preparation if you changed its default. Cleanup
@@ -159,22 +170,20 @@ cleanup record to `state.json`.
 
 Use `--dry-run` to preview removal or `--yes` to skip confirmation. Missing
 deployments are harmless. If removal fails partway through, run cleanup again.
-The command uses the CLI and benchmark locks to reject concurrent operations.
 
 Once cleanup starts, this experiment cannot resume preparation or benchmarks.
 Choose a new experiment name to prepare new datasets. Saved results remain
-available for analysis. Moving result files to another host does not move the
-Docker deployments.
+available for analysis.
 
 ## Generate figures
 
 ```sh
-json-bench plot --experiment paper-run
+json-bench plot --experiment my-run
 ```
 
 Use the same `--results-dir` as preparation and benchmarking. The command reads
 completed run artifacts and writes PNG and PDF files under
-`results/paper-run/figures/`. It does not start databases or change run results,
+`results/my-run/figures/`. It does not start databases or change run results,
 and it still works after cleanup. PNG files use 200 DPI by default; use `--dpi`
 to change the resolution.
 

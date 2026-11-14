@@ -12,6 +12,50 @@ dataset = generate_travel_dataset(
 )
 ```
 
+## Collection relationships
+
+The diagram shows references between documents. `1` means exactly one;
+`0..n` means zero or more. For example, each booking refers to one tour,
+while a tour can have zero or more bookings.
+
+```mermaid
+classDiagram
+    direction LR
+    class users {
+        string _id
+        string role
+    }
+    class tours {
+        string _id
+        string guide_id
+        array itinerary
+    }
+    class bookings {
+        string _id
+        string user_id
+        string tour_id
+        array travellers
+    }
+    class reviews {
+        string _id
+        string booking_id
+        string tour_id
+    }
+    users "1" -- "0..n" tours : guide_id
+    users "1" -- "0..n" bookings : user_id
+    tours "1" -- "0..n" bookings : tour_id
+    bookings "1" -- "0..n" reviews : booking_id
+    tours "1" -- "0..n" reviews : tour_id
+```
+
+Tours reference users whose role is `guide`. Bookings reference ordinary users.
+Each review copies the tour ID from its booking. Multiple reviews can reference
+the same booking.
+
+`itinerary` and `travellers` are embedded arrays, not separate collections.
+Traveller records are not references to user documents. The diagram lists only
+identifiers, reference fields, and the two embedded arrays; other fields are omitted.
+
 ## API
 
 ```python
@@ -41,7 +85,7 @@ Each call returns independent dictionaries and lists.
 
 ## Compatibility with JSONBench
 
-The private generator preserves the existing JSONBench generation order and
+The private generator preserves the original [JSONBench](https://github.com/zeNightshade/JSONBench) generation order and
 random calls. Faker is pinned to 38.3.0, matching JSONBench's lockfile.
 Repeatability requires the same inputs and compatible dependency versions.
 
@@ -57,8 +101,7 @@ The data rules are unchanged:
 
 Tests compare complete collection hashes with outputs captured from the original
 JSONBench generator. The reference file records the source commit, source-file
-checksum, Faker version and inputs. It requires no JSONBench checkout at test time.
-Update reference hashes only after explicitly agreeing to change compatibility.
+checksum, Faker version and inputs.
 
 ## Memory and loading
 

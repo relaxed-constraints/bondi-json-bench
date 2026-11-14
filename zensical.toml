@@ -1,4 +1,7 @@
 [project]
+site_url = "https://relaxed-constraints.github.io/bondi-json-bench/"
+repo_url = "https://github.com/relaxed-constraints/bondi-json-bench"
+repo_name = "relaxed-constraints/bondi-json-bench"
 site_name = "BONDI JSON Bench"
 site_description = "An analytical document database benchmark built on BONDI"
 copyright = "Copyright &copy; 2026 Relaxed Constraints"
@@ -6,7 +9,7 @@ extra_css = ["stylesheets/markdown-copy.css"]
 nav = [
  { "Home" = "index.md" },
  { "Getting started" = [{ "Installation" = "installation.md" }, { "Quickstart" = "quickstart.md" }] },
- { "User guide" = [{ "Overview" = "user-guide.md" }, { "CLI workflow" = "cli.md" }, { "Advanced: Yanex" = "yanex.md" }, { "Troubleshooting" = "troubleshooting.md" }] },
+ { "User guide" = [{ "Overview" = "user-guide.md" }, { "CLI workflow" = "cli.md" }, { "Yanex workflow" = "yanex.md" }, { "Troubleshooting" = "troubleshooting.md" }] },
  { "Benchmark design" = [{ "Overview" = "design.md" }, { "Travel dataset" = "data.md" }, { "Query templates" = "queries.md" }, { "Baseline indexes" = "indexes.md" }, { "Equivalence checks" = "validation.md" }, { "Execution and metrics" = "analysis.md" }, { "Reading the figures" = "plotting.md" }] },
  { "Results" = "results.md" },
  { "Reference" = [
@@ -39,9 +42,16 @@ scheme = "slate"
 toggle.icon = "lucide/moon"
 toggle.name = "Switch to system preference"
 
+[project.markdown_extensions.admonition]
+
+[project.markdown_extensions."pymdownx.details"]
+
 [project.markdown_extensions."pymdownx.highlight"]
 
 [project.markdown_extensions."pymdownx.superfences"]
+custom_fences = [
+    { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
 
 [project.markdown_extensions."pymdownx.tabbed"]
 alternate_style = true

@@ -1,7 +1,7 @@
 # Execution and metrics
 
 BONDI generates sustained load with one query in flight per client. Clients select
-queries with the configured weights and submit another after completion.
+queries at random with the configured weights and submit another after completion.
 The benchmark runs warm-up, measurement, and draining in that order.
 
 ## Measurement window
@@ -22,10 +22,7 @@ after measurement; draining gives in-flight queries time to finish.
 Runtime is BONDI's `ExecutionResult.elapsed_ms / 1000`. It excludes the health
 preflight and differs from `LoadResult.duration`, which includes that preflight.
 Errors, timeouts, and unresolved attempts do not enter runtime statistics.
-No successful samples produces `None`, not zero.
 
-The four outcome counts sum to measurement admissions. A success during draining
-contributes to successful runtime and outcome counts, but not throughput.
 
 ## Early termination
 
@@ -33,10 +30,6 @@ A `query_error` or `database_unavailable` stop reason flags early termination,
 even if it occurs during warm-up. The throughput denominator remains the configured
 measurement duration. The runner saves partial evidence, then reports failure.
 Cohort analysis rejects early-stopped summaries.
-
-Drain expiry alone is not an early-admission stop. Inspect unresolved counts
-separately. An empty result list does not prove that a full run completed, and
-analysis cannot detect observations that the caller failed to retain.
 
 ## Per-query summaries
 
@@ -56,10 +49,7 @@ analysis = analyse_load_results(
 )
 print(analysis.summary.throughput_queries_per_second)
 ```
-
-Supply retained BONDI results from one run, including warm-up and failures.
-Duplicate attempt IDs and invalid workload positions are rejected. See the
-[analysis API](reference/analysis.md) for all fields and functions.
+See the [analysis API](reference/analysis.md) for all fields and functions.
 
 ## Repetitions and cohorts
 

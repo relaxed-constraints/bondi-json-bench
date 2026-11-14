@@ -5,7 +5,7 @@ We check translation compatibility and execution results separately.
 ## Reference-output tests
 
 The test fixtures contain MongoDB pipelines and Couchbase SQL++ captured from
-the corrected JSONBench implementation. Tests compare generated queries against
+the JSONBench implementation. Tests compare generated queries against
 these fixtures, including destination metadata. The fixtures record the source
 revision and checksums. No old JSONBench checkout is needed to run them.
 
