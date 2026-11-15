@@ -45,7 +45,6 @@ def setup(monkeypatch, tmp_path):
         "get_deployment",
         lambda name: next(db for db in deployments.values() if db.name == name),
     )
-    monkeypatch.setattr(exp, "configure_couchbase", MagicMock())
     monkeypatch.setattr(exp, "create_indexes", MagicMock())
     return deployments, events
 
@@ -92,6 +91,9 @@ def test_preparation_retains_protocol_and_artifacts(tmp_path, monkeypatch, setup
     assert all(call.kwargs["mode"] == "replace" for call in loader.call_args_list)
     assert events[0][2]["wiredtiger_cache_size_gb"] == 12
     assert events[2][2]["memory_limit_mb"] == 24576
+    assert events[2][2]["data_memory_mb"] == config["couchbase"]["data_mb"]
+    assert events[2][2]["index_memory_mb"] == config["couchbase"]["index_mb"]
+    assert events[2][2]["bucket_memory_mb"] == config["couchbase"]["data_mb"]
     assert json.loads((tmp_path / "indexes.json").read_text()) == indexes
 
 

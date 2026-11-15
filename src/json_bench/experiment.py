@@ -20,7 +20,6 @@ from pymongo import MongoClient
 
 from json_bench.analysis import LoadAnalysis, analyse_load_results, load_result_record
 from json_bench.data import generate_travel_dataset
-from json_bench.deployment import configure_couchbase
 from json_bench.indexes import ensure_couchbase_indexes, ensure_mongodb_indexes
 from json_bench.queries import translate_couchbase, translate_mongodb
 
@@ -168,9 +167,10 @@ def prepare_databases(
                         query_port=params["couchbase"]["query_port"],
                         kv_port=params["couchbase"]["kv_port"],
                         memory_limit_mb=params[backend]["memory_limit_mb"],
+                        data_memory_mb=params["couchbase"]["data_mb"],
+                        index_memory_mb=params["couchbase"]["index_mb"],
+                        bucket_memory_mb=params["couchbase"]["data_mb"],
                     )
-                    on_progress("[couchbase] Configuring memory quotas...")
-                    configure_couchbase(deployment, params["couchbase"])
 
                 on_progress(f"[{backend}] Deployment ready.")
                 manifest["deployments"][backend]["image"] = deployment.image
