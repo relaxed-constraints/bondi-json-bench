@@ -258,7 +258,7 @@ wheels = [
 
 [[package]]
 name = "bondi"
-version = "0.3.3"
+version = "0.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -269,9 +269,9 @@ dependencies = [
     { name = "pymongo" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2b/da/6163633539d69d442f88d29ed16628514bf94172e1c5f74941728b11f1f1/bondi-0.3.3.tar.gz", hash = "sha256:950f4bcbc62342e5ea75d91749494418cd81348f1b04330088197d057d4bd7f4", size = 368321 }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/0e/0fc3169a041094e1c2a9b9565064bb9b85d1ed053b548625c0a1b9adb994/bondi-0.3.4.tar.gz", hash = "sha256:75c426eae208f6c8fced746476f8dca46f088795202802f8849be0832fa1cb95", size = 371165 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/1c/4d455e31dfd403fd9a907198a2228704b70c67be6e045d66ca07c405b7ed/bondi-0.3.3-py3-none-any.whl", hash = "sha256:3c3d4f230333d569ebed0df2622de1659ee4617a109a4dac71b2a2bc09803f8c", size = 128628 },
+    { url = "https://files.pythonhosted.org/packages/00/62/3378520e330ba3556585af46761ea55009c2e9133746b76d3fa799a04402/bondi-0.3.4-py3-none-any.whl", hash = "sha256:24a4986db809642de5035eec7bdadfdf2fc3617bc043fc0e8c0c1c71edea3d73", size = 129628 },
 ]
 
 [package.optional-dependencies]
@@ -307,7 +307,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bondi", extras = ["couchbase"], specifier = "==0.3.3" },
+    { name = "bondi", extras = ["couchbase"], specifier = "==0.3.4" },
     { name = "click", specifier = ">=8.1,<9" },
     { name = "faker", specifier = "==38.3.0" },
     { name = "huggingface-hub", specifier = ">=0.30,<2" },
