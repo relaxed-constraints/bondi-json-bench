@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Set Couchbase memory quotas through BONDI during deployment creation.
+- Use published BONDI 0.3.3 to set Couchbase memory quotas at deployment
+  creation; remove the custom REST helpers and editable sibling dependency.
 
 - Install relcon-docs 0.1.0 from PyPI and enable shared heading permalinks.
 

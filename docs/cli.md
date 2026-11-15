@@ -97,6 +97,9 @@ Preparation defaults are set to these values:
 | Couchbase data quota | 8192 MiB | `--couchbase-data-mb` |
 | Couchbase index quota | 4096 MiB | `--couchbase-index-mb` |
 
+BONDI applies the Couchbase quotas during deployment creation. The bucket uses
+the full Data Service budget; its memory is included in that budget.
+
 Docker needs enough memory for these allocations and service overhead. Port
 options are available for both backends. The defaults are 27147 for MongoDB and
 18491/18493/21430 for Couchbase management/query/KV.

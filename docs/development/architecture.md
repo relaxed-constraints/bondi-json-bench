@@ -74,7 +74,7 @@ Its functionality is grouped into separate modules, as shown below.
 | `data.py` | Generate travel documents without database or file access |
 | `queries.py` | Validate templates and translate them into native BONDI queries |
 | `validate.py` | Compare collected grouped query results |
-| `indexes.py`, `deployment.py` | Apply benchmark-specific index and quota settings |
+| `indexes.py` | Apply benchmark-specific indexes |
 | `experiment.py` | Prepare databases and execute one benchmark run |
 | `analysis.py` | Calculate measurement summaries and prepare result cohorts |
 | `plotting.py` | Return Matplotlib figures from prepared analysis data |

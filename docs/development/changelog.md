@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Use BONDI 0.3.3 deployment quotas and remove the custom Couchbase REST helpers.
+
 - Add installation instructions for uv and pip, with a link to the quickstart.
 
 - Use published BONDI 0.3.1 instead of an editable sibling checkout.

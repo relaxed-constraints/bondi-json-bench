@@ -93,7 +93,6 @@ def test_preparation_retains_protocol_and_artifacts(tmp_path, monkeypatch, setup
     assert events[2][2]["memory_limit_mb"] == 24576
     assert events[2][2]["data_memory_mb"] == config["couchbase"]["data_mb"]
     assert events[2][2]["index_memory_mb"] == config["couchbase"]["index_mb"]
-    assert events[2][2]["bucket_memory_mb"] == config["couchbase"]["data_mb"]
     assert json.loads((tmp_path / "indexes.json").read_text()) == indexes
 
 

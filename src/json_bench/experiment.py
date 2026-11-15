@@ -169,7 +169,6 @@ def prepare_databases(
                         memory_limit_mb=params[backend]["memory_limit_mb"],
                         data_memory_mb=params["couchbase"]["data_mb"],
                         index_memory_mb=params["couchbase"]["index_mb"],
-                        bucket_memory_mb=params["couchbase"]["data_mb"],
                     )
 
                 on_progress(f"[{backend}] Deployment ready.")

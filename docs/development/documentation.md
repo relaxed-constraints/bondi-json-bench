@@ -1,9 +1,5 @@
 # Build the documentation
 
-This branch uses the adjacent editable BONDI checkout for the unreleased
-Couchbase deployment quota API. Restore a published BONDI pin before running
-the standalone CI or Pages workflows.
-
 The commands assume an activated Python environment with the required packages
 installed. Use `python -m venv .venv` or `uv venv .venv` to create one if needed;
 see [Create an environment and install](../installation.md#create-an-environment-and-install).
