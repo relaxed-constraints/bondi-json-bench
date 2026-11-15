@@ -34,7 +34,7 @@ button styling, Markdown exports, llms.txt, callouts and equation rendering.
 MathJax loads from jsDelivr only on pages with equations. The local results.css
 retains the benchmark figure layout.
 
-To upgrade, update the Git commit in pyproject.toml, run `uv lock` and
+To upgrade, update the relcon-docs version in pyproject.toml, run `uv lock` and
 `uv sync --locked --group docs`, then run:
 
 ```sh
@@ -49,3 +49,6 @@ Keep project overrides in mkdocs.yml. Do not edit managed files under
 docs/javascripts/relcon-docs-math.js. Configuration updates detect local edits;
 review conflicts before using --force. Update the reusable workflow commit in
 .github/workflows/docs.yml separately; its main/manual triggers are project-owned.
+
+Heading permalinks are inherited from relcon-docs. Hover over a heading to reveal
+the ¶ link to that section.
