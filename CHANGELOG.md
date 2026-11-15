@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Adopt relcon-docs shared defaults, assets and deployment workflow while retaining
+  benchmark navigation, API settings and results figure layout.
+
 - Document installation from GitHub with uv or pip and an activated environment.
 
 - Use published BONDI 0.3.1 and remove the editable sibling dependency.

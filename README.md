@@ -26,6 +26,7 @@ activated and dependencies installed. You can create an environment with
 [activation instructions](docs/installation.md#create-an-environment-and-install).
 
 ```sh
+uv sync --locked --group docs
 zensical serve --dev-addr 127.0.0.1:8001
 ```
 

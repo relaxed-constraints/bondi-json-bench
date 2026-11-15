@@ -16,8 +16,6 @@ dependencies = [
     "ipykernel>=7.4.0",
     "bondi[couchbase]==0.3.1",
     "faker==38.3.0",
-    "zensical>=0.1.1,<0.2",
-    "mkdocstrings-python>=2.0.10",
 ]
 
 [project.scripts]
@@ -36,6 +34,7 @@ packages = ["src/json_bench"]
 
 [dependency-groups]
 dev = ["pytest>=8,<9", "ruff>=0.9,<1"]
+docs = ["relcon-docs @ git+https://github.com/relaxed-constraints/relcon-docs.git@ea4aa3ded66f09a8963a5f12655f9e601e286400"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
