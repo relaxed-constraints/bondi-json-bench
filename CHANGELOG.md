@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Update relcon-docs to inherit alphabetical API members and exclude private members.
+
 - Adopt relcon-docs shared defaults, assets and deployment workflow while retaining
   benchmark navigation, API settings and results figure layout.
 
