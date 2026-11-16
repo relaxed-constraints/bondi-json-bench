@@ -15,7 +15,7 @@ def clients(monkeypatch):
     monkeypatch.setattr(mod, "MongoClient", mongo)
     monkeypatch.setattr(mod, "Cluster", cluster)
     creators = [MagicMock(), MagicMock()]
-    monkeypatch.setattr(mod, "create_mongodb_indexes", creators[0])
+    monkeypatch.setattr(mod, "create_mongo_indexes", creators[0])
     monkeypatch.setattr(mod, "create_couchbase_indexes", creators[1])
     db = mongo.return_value.__enter__.return_value["travel"]
     manager = cluster.return_value.bucket.return_value.scope.return_value.collection.return_value.query_indexes.return_value

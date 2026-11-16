@@ -5,8 +5,8 @@ import re
 from datetime import timedelta
 
 from bondi import FieldIndex, IndexSet
-from bondi.couchbase import create_indexes as create_couchbase_indexes
-from bondi.mongodb import create_indexes as create_mongodb_indexes
+from bondi.couchbase import create_couchbase_indexes
+from bondi.mongodb import create_mongo_indexes
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions
@@ -89,7 +89,7 @@ def ensure_mongodb_indexes(deployment, indexes: IndexSet, *, timeout_seconds=300
                 if list(index["key"].items()) != list(definition.keys) or not plain:
                     raise ValueError(f"Conflicting MongoDB index: {collection}.{name}")
     if any(pending.values()):
-        create_mongodb_indexes(
+        create_mongo_indexes(
             deployment, indexes=IndexSet(pending), database="travel", timeout=timeout_seconds
         )
     return names

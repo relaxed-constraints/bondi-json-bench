@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Upgrade to BONDI 0.3.8 and its renamed index lifecycle APIs.
+
+
 - Use published BONDI 0.3.3 to set Couchbase memory quotas at deployment
   creation; remove the custom REST helpers and editable sibling dependency.
 

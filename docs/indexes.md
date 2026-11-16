@@ -55,7 +55,7 @@ names = ensure_couchbase_indexes(
 
 Supply a running BONDI deployment. These helpers inspect all requested indexes,
 reuse matching names, and delegate missing definitions to BONDI's backend
-`create_indexes()` function. They own and close their inspection clients.
+`create_mongo_indexes()` or `create_couchbase_indexes()` function. They own and close their inspection clients.
 MongoDB uses database `travel`; Couchbase uses bucket `travel`, scope `_default`.
 
 Conflicting named definitions raise `ValueError` before creating missing indexes.
