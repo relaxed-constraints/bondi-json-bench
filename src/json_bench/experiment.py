@@ -7,20 +7,17 @@ from copy import deepcopy
 from dataclasses import asdict
 from pathlib import Path
 
+from bondi import IndexSet
 from bondi.couchbase import CouchbaseCollectionRef, CouchbaseExecutor
 from bondi.data import load_documents
 from bondi.deployment import deploy_couchbase, deploy_mongodb, get_deployment
 from bondi.load import WeightedRandom
 from bondi.mongodb import MongoCollectionRef, MongoExecutor
 from bondi.workload import Workload, WorkloadEntry
-from couchbase.auth import PasswordAuthenticator
-from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions
-from pymongo import MongoClient
 
 from json_bench.analysis import LoadAnalysis, analyse_load_results, load_result_record
 from json_bench.data import generate_travel_dataset
-from json_bench.indexes import ensure_couchbase_indexes, ensure_mongodb_indexes
+from json_bench.indexes import ensure_couchbase_indexes, ensure_mongodb_indexes, validate_indexes
 from json_bench.queries import translate_couchbase, translate_mongodb
 
 
@@ -65,24 +62,16 @@ def load_dataset(deployment, dataset, *, on_progress=_print_progress):
 def create_indexes(deployment, indexes, *, on_progress=_print_progress):
     """Create the supplied baseline indexes in travel and close native clients.
 
-    indexes is the collection-to-fields mapping for this backend. The deployment
-    must already be running. Driver and index-definition errors propagate.
+    indexes is a BONDI IndexSet. The deployment must already be running.
+    Matching indexes are reused; conflicting definitions raise before creation.
+    Returns collection names mapped to the requested index names.
     """
     backend = deployment.backend
     on_progress(f"[{backend}] Creating baseline indexes...")
-    if backend == "mongodb":
-        with MongoClient(deployment.uri) as client:
-            ensure_mongodb_indexes(client["travel"], indexes)
-    else:
-        cluster = Cluster(
-            deployment.uri,
-            ClusterOptions(PasswordAuthenticator(deployment.username, deployment.password)),
-        )
-        try:
-            ensure_couchbase_indexes(cluster.bucket("travel").scope("_default"), indexes)
-        finally:
-            cluster.close()
+    helper = ensure_mongodb_indexes if backend == "mongodb" else ensure_couchbase_indexes
+    names = helper(deployment, indexes)
     on_progress(f"[{backend}] Baseline indexes ready.")
+    return names
 
 
 def prepare_databases(
@@ -100,7 +89,7 @@ def prepare_databases(
     Args:
         params (dict): Complete nested preparation configuration, with no implicit defaults.
         run_id (str): Caller-selected suffix for deployment names and manifest identity.
-        indexes (dict): Backend-to-collection-to-fields index definitions.
+        indexes (dict): Backend-keyed mappings accepted by IndexSet.from_dict().
         output_dir (str | Path): Directory for JSON artifacts when on_artifact is omitted.
         on_progress (Callable): Receives progress strings. Defaults to flushed console output.
         on_artifact (Callable | None): Optional synchronous callback(value, filename) that saves JSON.
@@ -116,7 +105,18 @@ def prepare_databases(
     """
     if not isinstance(run_id, str) or not run_id:
         raise ValueError("run_id must be a nonempty string")
+    if set(indexes) != {"mongodb", "couchbase"}:
+        raise ValueError("indexes must define mongodb and couchbase")
+    index_sets = {backend: IndexSet.from_dict(value) for backend, value in indexes.items()}
+    for index_set in index_sets.values():
+        validate_indexes(index_set)
     save_artifact = _artifact_saver(output_dir, on_artifact)
+    # Use BONDI's persistence format while preserving the JSON callback contract.
+    with tempfile.TemporaryDirectory() as directory:
+        for backend, index_set in index_sets.items():
+            path = Path(directory) / f"indexes.{backend}.json"
+            index_set.save(path)
+            save_artifact(json.loads(path.read_text()), path.name)
     on_progress(f"Generating travel dataset (SF={params['scale_factor']})...")
     dataset = generate_travel_dataset(
         scale=params["scale_factor"], seed=params["seed"], reference_date=params["reference_date"]
@@ -175,7 +175,8 @@ def prepare_databases(
                 manifest["deployments"][backend]["image"] = deployment.image
 
                 load_dataset(deployment, dataset, on_progress=on_progress)
-                create_indexes(deployment, indexes[backend], on_progress=on_progress)
+                names = create_indexes(deployment, index_sets[backend], on_progress=on_progress)
+                save_artifact(names, f"index_names.{backend}.json")
             finally:
                 # Startup can fail after BONDI saves the deployment. Stop that too.
                 if deployment is None:

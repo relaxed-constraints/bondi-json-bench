@@ -45,7 +45,7 @@ def setup(monkeypatch, tmp_path):
         "get_deployment",
         lambda name: next(db for db in deployments.values() if db.name == name),
     )
-    monkeypatch.setattr(exp, "create_indexes", MagicMock())
+    monkeypatch.setattr(exp, "create_indexes", MagicMock(return_value={}))
     return deployments, events
 
 
@@ -66,7 +66,10 @@ def test_preparation_retains_protocol_and_artifacts(tmp_path, monkeypatch, setup
     monkeypatch.setattr(exp, "load_documents", loader)
     metrics = []
     config = params("prepare")
-    indexes = {"mongodb": {}, "couchbase": {}}
+    indexes = {
+        "mongodb": {"bookings": [{"fields": ["tour_id"], "name": "baseline"}]},
+        "couchbase": {},
+    }
     manifest = exp.prepare_databases(
         config,
         run_id="example",
@@ -76,6 +79,12 @@ def test_preparation_retains_protocol_and_artifacts(tmp_path, monkeypatch, setup
         on_metrics=metrics.append,
     )
     assert manifest == json.loads((tmp_path / "preparation.json").read_text())
+    from bondi import IndexSet
+
+    for backend in indexes:
+        restored = IndexSet.load(tmp_path / f"indexes.{backend}.json")
+        assert restored.to_dict() == IndexSet.from_dict(indexes[backend]).to_dict()
+        assert json.loads((tmp_path / f"index_names.{backend}.json").read_text()) == {}
     assert manifest["status"] == "ready"
     assert metrics == [{"documents_per_backend": 1}]
     generator.assert_called_once_with(
@@ -108,7 +117,7 @@ def test_incomplete_load_saves_failure_and_stops(tmp_path, monkeypatch, setup):
         exp.prepare_databases(
             params("prepare"),
             run_id="example",
-            indexes={"mongodb": {}},
+            indexes={"mongodb": {}, "couchbase": {}},
             output_dir=tmp_path,
             on_progress=lambda _: None,
         )
@@ -229,7 +238,7 @@ def test_failed_startup_stops_saved_deployment(tmp_path, monkeypatch, setup):
         exp.prepare_databases(
             params("prepare"),
             run_id="example",
-            indexes={},
+            indexes={"mongodb": {}, "couchbase": {}},
             output_dir=tmp_path,
             on_progress=lambda _: None,
         )
@@ -260,8 +269,21 @@ def test_progress_callback_cannot_prevent_shutdown(tmp_path, monkeypatch, setup)
         exp.prepare_databases(
             params("prepare"),
             run_id="example",
-            indexes={"mongodb": {}},
+            indexes={"mongodb": {}, "couchbase": {}},
             output_dir=tmp_path,
             on_progress=progress,
         )
     deployments["mongodb"].stop.assert_called_once()
+
+
+def test_old_index_configuration_rejected_before_generation(tmp_path, monkeypatch):
+    generator = MagicMock()
+    monkeypatch.setattr(exp, "generate_travel_dataset", generator)
+    with pytest.raises((ValueError, TypeError)):
+        exp.prepare_databases(
+            params("prepare"),
+            run_id="old",
+            output_dir=tmp_path,
+            indexes={"mongodb": {"bookings": ["tour_id"]}, "couchbase": {}},
+        )
+    generator.assert_not_called()

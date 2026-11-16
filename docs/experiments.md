@@ -84,5 +84,8 @@ collections and checks acknowledged write counts. It does not start or stop the
 supplied deployment.
 
 `create_indexes(deployment, indexes, *, on_progress=...)` creates the baseline
-indexes and closes its native client. Supply the index mapping for that backend.
+indexes and closes its inspection client. Supply a BONDI `IndexSet` for that backend.
+It returns collection names mapped to index names, reusing matching existing indexes
+and delegating missing definitions to BONDI. See [Baseline indexes](indexes.md)
+for configuration, persistence artifacts and resume behavior.
 Both functions require a running deployment and propagate errors.

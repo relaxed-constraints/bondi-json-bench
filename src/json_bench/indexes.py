@@ -1,98 +1,192 @@
-"""Prepare explicit single-field index baselines using native database clients."""
+"""Resume-safe baseline inspection; BONDI owns index definitions and creation."""
 
 import math
 import re
 from datetime import timedelta
 
-
-def _specs(indexes):
-    """Validate the complete mapping before making database changes."""
-    if not isinstance(indexes, dict):
-        raise ValueError("indexes must map collection names to lists of fields")
-    specs = []
-    identifier = r"[A-Za-z_][A-Za-z_0-9]*"
-    for collection, fields in indexes.items():
-        if not isinstance(collection, str) or not re.fullmatch(identifier, collection):
-            raise ValueError("Collection names must be simple identifiers")
-        if not isinstance(fields, list):
-            raise ValueError("Each collection must map to a list of fields")
-        for field in fields:
-            if not isinstance(field, str) or not re.fullmatch(identifier, field):
-                raise ValueError("Index fields must be simple identifiers")
-            specs.append((collection, field))
-    return list(dict.fromkeys(specs))
+from bondi import FieldIndex, IndexSet
+from bondi.couchbase import create_indexes as create_couchbase_indexes
+from bondi.mongodb import create_indexes as create_mongodb_indexes
+from couchbase.auth import PasswordAuthenticator
+from couchbase.cluster import Cluster
+from couchbase.options import ClusterOptions
+from pymongo import MongoClient
 
 
-def ensure_mongodb_indexes(database, indexes: dict[str, list[str]]) -> None:
-    """Ensure separate ascending indexes on each listed field.
+def validate_indexes(indexes: IndexSet, timeout_seconds=300) -> None:
+    """Validate the shared baseline before any database operations.
 
     Args:
-        database (pymongo.database.Database): Native pymongo Database. The caller owns its client.
-        indexes: Collection-to-fields mapping. Fields are simple names, not paths.
+        indexes: Collection-keyed BONDI IndexSet containing only FieldIndex definitions.
+        timeout_seconds (float): Positive finite per-operation timeout in seconds.
 
-    Existing matching named indexes are reused. Conflicting definitions raise
-    ValueError. Index creation blocks until the server completes it. Unrelated
-    indexes are retained. Driver errors propagate. Returns None.
+    Native index types need their own equivalence policy and are not accepted here.
     """
-    for collection, field in _specs(indexes):
-        target = database[collection]
-        name = "_id_" if field == "_id" else f"{field}_1"
-        existing = list(target.list_indexes())
-        for index in existing:
-            same_key = list(index["key"].items()) == [(field, 1)]
-            plain = (
-                not any(
-                    index.get(option)
-                    for option in ("sparse", "partialFilterExpression", "collation", "hidden")
-                )
-                and (field == "_id" or not index.get("unique"))
-                and "expireAfterSeconds" not in index
-            )
-            if index["name"] == name and not (same_key and plain):
-                raise ValueError(f"Conflicting MongoDB index: {collection}.{name}")
-        if not any(list(i["key"].items()) == [(field, 1)] and i["name"] == name for i in existing):
-            # The native driver checks conflicts with equivalent indexes under other names.
-            target.create_index([(field, 1)], name=name)
-
-
-def ensure_couchbase_indexes(scope, indexes: dict[str, list[str]], *, timeout_seconds=300) -> None:
-    """Ensure separate secondary indexes and wait for each to be online.
-
-    Args:
-        scope (couchbase.scope.Scope): Native couchbase Scope. The caller owns its cluster connection.
-        indexes: Collection-to-fields mapping. Fields are simple names, not paths.
-        timeout_seconds (float): Positive finite timeout for each management operation.
-
-    Names use collection-field, with _id named id to match corrected JSONBench.
-    Conflicting named indexes raise ValueError. Other indexes are left untouched.
-    Driver errors propagate. Returns None. Run preparation without concurrent DDL.
-    """
-    specs = _specs(indexes)
+    if not isinstance(indexes, IndexSet):
+        raise TypeError("indexes must be an IndexSet")
+    indexes.validate()
     if (
-        not isinstance(timeout_seconds, (int, float))
+        isinstance(timeout_seconds, bool)
+        or not isinstance(timeout_seconds, (int, float))
         or not math.isfinite(timeout_seconds)
         or timeout_seconds <= 0
     ):
         raise ValueError("timeout_seconds must be positive and finite")
-    names = [
-        (collection, f"{collection}-{'id' if field == '_id' else field}")
-        for collection, field in specs
-    ]
-    if len(set(names)) != len(names):
-        raise ValueError("Index names collide (id and _id use the same suffix)")
+    for definitions in indexes.values():
+        names = set()
+        for index in definitions:
+            if type(index) is not FieldIndex:
+                raise TypeError("Baseline indexes must be FieldIndex definitions")
+            if index.resolved_name in names:
+                raise ValueError("Duplicate index name in collection")
+            names.add(index.resolved_name)
+
+
+def ensure_mongodb_indexes(deployment, indexes: IndexSet, *, timeout_seconds=300) -> dict:
+    """Reuse matching baseline indexes and create missing ones through BONDI.
+
+    Args:
+        deployment (Deployment): Running MongoDB BONDI Deployment for the travel database.
+        indexes: Collection-keyed IndexSet of shared field definitions.
+        timeout_seconds (float): Positive finite timeout per operation.
+
+    Returns:
+        Collection names mapped to requested index names in definition order.
+
+    Inspect every requested index before creating any. Reject conflicting keys or
+    options; leave unrelated indexes untouched. Native errors propagate, including
+    BONDI IndexCreationError for partially completed creation batches. Run without
+    concurrent index changes. Clients are closed on success or failure.
+    """
+    validate_indexes(indexes, timeout_seconds)
+    pending, names = {}, {}
+    with MongoClient(deployment.uri, timeoutMS=timeout_seconds * 1000) as client:
+        for collection, definitions in indexes.items():
+            existing = {
+                index["name"]: index for index in client["travel"][collection].list_indexes()
+            }
+            pending[collection], names[collection] = [], []
+            for definition in definitions:
+                is_id = definition.keys == (("_id", 1),)
+                name = "_id_" if is_id else definition.resolved_name
+                if is_id and definition.name not in (None, "_id_"):
+                    raise ValueError("The built-in _id index requires its default name")
+                if name == "_id_" and not is_id:
+                    raise ValueError("_id_ is reserved for the built-in index")
+                names[collection].append(name)
+                index = existing.get(name)
+                if index is None:
+                    pending[collection].append(definition)
+                    continue
+                plain = (
+                    not any(
+                        index.get(option)
+                        for option in ("sparse", "partialFilterExpression", "collation", "hidden")
+                    )
+                    and (is_id or not index.get("unique"))
+                    and "expireAfterSeconds" not in index
+                )
+                if list(index["key"].items()) != list(definition.keys) or not plain:
+                    raise ValueError(f"Conflicting MongoDB index: {collection}.{name}")
+    if any(pending.values()):
+        create_mongodb_indexes(
+            deployment, indexes=IndexSet(pending), database="travel", timeout=timeout_seconds
+        )
+    return names
+
+
+def _matching_key(expression, field, direction):
+    """Match plain field keys, allowing the server to omit default ASC."""
+    expression = expression.strip()
+    match = re.search(r"\s+(ASC|DESC)$", expression, re.IGNORECASE)
+    observed_direction = 1
+    if match:
+        observed_direction = 1 if match[1].upper() == "ASC" else -1
+        expression = expression[: match.start()].strip()
+    quoted = ".".join("`" + part.replace("`", "``") + "`" for part in field.split("."))
+    # Unquoted names only represent paths for simple SQL++ identifiers.
+    allowed = [quoted]
+    if re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)*", field):
+        allowed.append(field)
+    return expression in allowed and observed_direction == direction
+
+
+def ensure_couchbase_indexes(deployment, indexes: IndexSet, *, timeout_seconds=300) -> dict:
+    """Reuse matching secondary indexes and create missing ones through BONDI.
+
+    Args:
+        deployment (Deployment): Running Couchbase BONDI Deployment with travel._default collections.
+        indexes: Collection-keyed IndexSet of shared field definitions.
+        timeout_seconds (float): Positive finite timeout per operation, in seconds.
+
+    Returns:
+        Collection names mapped to requested index names in definition order.
+
+    Existing keys, ordering, primary status, predicates and partitioning must match
+    the plain baseline. All conflicts are checked before creation. Matching existing
+    indexes are watched until online, including on resume; BONDI waits for new ones.
+    Deferred existing builds are started before watching. Unrelated indexes are
+    retained. Preparation must run without concurrent DDL. Clients always close.
+    """
+    validate_indexes(indexes, timeout_seconds)
     timeout = timedelta(seconds=timeout_seconds)
-    for (collection, field), (_, name) in zip(specs, names, strict=True):
-        manager = scope.collection(collection).query_indexes()
-        existing = {index.name: index for index in manager.get_all_indexes(timeout=timeout)}
-        if name in existing:
-            index = existing[name]
-            if (
-                index.is_primary
-                or index.index_key not in ([field], [f"`{field}`"])
-                or index.condition
-                or index.partition
-            ):
-                raise ValueError(f"Conflicting Couchbase index: {collection}.{name}")
-        else:
-            manager.create_index(name, [f"`{field}`"], timeout=timeout)
-        manager.watch_indexes([name], timeout=timeout)
+    pending, names, reused, deferred = {}, {}, {}, []
+    cluster = Cluster(
+        deployment.uri,
+        ClusterOptions(PasswordAuthenticator(deployment.username, deployment.password)),
+    )
+    try:
+        scope = cluster.bucket("travel").scope("_default")
+        for collection, definitions in indexes.items():
+            manager = scope.collection(collection).query_indexes()
+            existing = {index.name: index for index in manager.get_all_indexes(timeout=timeout)}
+            pending[collection], names[collection], reused[collection] = [], [], []
+            for definition in definitions:
+                name = definition.resolved_name
+                names[collection].append(name)
+                index = existing.get(name)
+                if index is None:
+                    pending[collection].append(definition)
+                    continue
+                if (
+                    index.is_primary
+                    or index.condition
+                    or index.partition
+                    or len(index.index_key) != len(definition.keys)
+                    or not all(
+                        _matching_key(expr, field, direction)
+                        for expr, (field, direction) in zip(
+                            index.index_key, definition.keys, strict=True
+                        )
+                    )
+                ):
+                    raise ValueError(f"Conflicting Couchbase index: {collection}.{name}")
+                reused[collection].append(name)
+                if index.state == "deferred":
+                    deferred.append((collection, name))
+        # Build only requested deferred indexes, never unrelated definitions.
+        for collection, name in deferred:
+
+            def quote(value):
+                return "`" + value.replace("`", "``") + "`"
+
+            cluster.query(
+                f"BUILD INDEX ON `travel`.`_default`.{quote(collection)} ({quote(name)})",
+                timeout=timeout,
+            ).execute()
+        if any(pending.values()):
+            create_couchbase_indexes(
+                deployment,
+                indexes=IndexSet(pending),
+                bucket="travel",
+                scope="_default",
+                timeout=timeout_seconds,
+            )
+        for collection, existing_names in reused.items():
+            if existing_names:
+                scope.collection(collection).query_indexes().watch_indexes(
+                    existing_names, timeout=timeout
+                )
+    finally:
+        cluster.close()
+    return names

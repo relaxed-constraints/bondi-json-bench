@@ -1,4 +1,46 @@
 {
-  "mongodb": {"bookings": ["tour_id"], "reviews": ["tour_id"]},
-  "couchbase": {"tours": ["_id"], "bookings": ["tour_id"], "reviews": ["tour_id"]}
+  "mongodb": {
+    "bookings": [
+      {
+        "fields": [
+          "tour_id"
+        ],
+        "name": "tour_id_1"
+      }
+    ],
+    "reviews": [
+      {
+        "fields": [
+          "tour_id"
+        ],
+        "name": "tour_id_1"
+      }
+    ]
+  },
+  "couchbase": {
+    "tours": [
+      {
+        "fields": [
+          "_id"
+        ],
+        "name": "tours-id"
+      }
+    ],
+    "bookings": [
+      {
+        "fields": [
+          "tour_id"
+        ],
+        "name": "bookings-tour_id"
+      }
+    ],
+    "reviews": [
+      {
+        "fields": [
+          "tour_id"
+        ],
+        "name": "reviews-tour_id"
+      }
+    ]
+  }
 }
