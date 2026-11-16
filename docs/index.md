@@ -30,7 +30,7 @@ functions and add experiment tracking, dependencies, and parameter sweeps.
 | Add a query or operator | [Extension guide](development/extending.md) |
 | Call the library from Python | [API reference](reference/index.md) |
 
-## The paper
+<!-- ## The paper
 
 This project builds on *JSONBench: Benchmarking JSON Document Stores for Analytical
 Workloads*, by Zenwei Lee, Thomas Rueckstiess, and Uwe Roehm, submitted to ICDE 2027
@@ -38,7 +38,7 @@ on 11 November 2026.
 
 The submitted paper used the earlier JSONBench implementation. Results from this
 BONDI-based implementation are a separate reproduction. The [Results](results.md)
-page will identify the code, settings, and runs used for its figures.
+page will identify the code, settings, and runs used for its figures. -->
 
 ## Scope
 
