@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Inherit shared image lightboxes and allow relcon-docs updates within
+  `>=0.1.0,<1.0.0`, retaining the lockfile for reproducible documentation builds.
+
 - Upgrade to BONDI 0.3.8 and its renamed index lifecycle APIs.
 
 
