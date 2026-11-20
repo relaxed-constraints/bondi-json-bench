@@ -37,22 +37,22 @@ def test_q5_inner_join_live():
         )
         for collection in ["tours", "reviews"]:
             load_documents(
-                data[collection], target=mongo, collection=MongoCollectionRef("travel", collection)
+                data[collection],
+                connection=mongo.connection,
+                collection=MongoCollectionRef("travel", collection),
             )
             load_documents(
                 data[collection],
-                target=couch,
+                connection=couch.connection,
                 collection=CouchbaseCollectionRef("travel", "_default", collection),
             )
-        with MongoExecutor.from_uri(mongo.uri, timeout_seconds=60) as executor:
+        with MongoExecutor.from_connection(mongo.connection, timeout_seconds=60) as executor:
             result = executor.run(
                 translate_mongodb(template, database="travel"), collect_results=True
             )
             assert {r["_id"]: r["avg_rating"] for r in result.documents} == data["expected"]
         query = translate_couchbase(template, bucket="travel")
-        with CouchbaseExecutor.from_uri(
-            couch.uri, username=couch.username, password=couch.password, timeout_seconds=60
-        ) as executor:
+        with CouchbaseExecutor.from_connection(couch.connection, timeout_seconds=60) as executor:
             for name, collection, field in [
                 ("tours-id", "tours", "_id"),
                 ("reviews-tour_id", "reviews", "tour_id"),

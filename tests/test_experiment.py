@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import yaml
+from bondi import CouchbaseConnection, MongoConnection
 from bondi.execution import ExecutionResult
 from bondi.load import LoadResult
 
@@ -32,6 +33,11 @@ def setup(monkeypatch, tmp_path):
             password="test",
             stop=MagicMock(side_effect=lambda b=backend: events.append(("stop", b))),
             start=MagicMock(side_effect=lambda **kw: events.append(("start", kw))),
+        )
+        db.connection = (
+            MongoConnection(db.uri, db.username, db.password)
+            if backend == "mongodb"
+            else CouchbaseConnection(db.uri, db.username, db.password)
         )
         deployments[backend] = db
 
@@ -98,6 +104,13 @@ def test_preparation_retains_protocol_and_artifacts(tmp_path, monkeypatch, setup
     ]
     assert loader.call_count == 8
     assert all(call.kwargs["mode"] == "replace" for call in loader.call_args_list)
+    for backend, calls in zip(
+        ("mongodb", "couchbase"), (loader.call_args_list[:4], loader.call_args_list[4:])
+    ):
+        assert all(call.kwargs["connection"] is deployments[backend].connection for call in calls)
+    assert [call.args[0] for call in exp.create_indexes.call_args_list] == [
+        deployments[backend].connection for backend in ("mongodb", "couchbase")
+    ]
     assert events[0][2]["wiredtiger_cache_size_gb"] == 12
     assert events[2][2]["memory_limit_mb"] == 24576
     assert events[2][2]["data_memory_mb"] == config["couchbase"]["data_mb"]
@@ -174,7 +187,7 @@ def test_benchmark_preserves_results_and_cleanup(tmp_path, monkeypatch, setup, b
     factory = MagicMock(return_value=executor)
     monkeypatch.setattr(
         getattr(exp, "MongoExecutor" if backend == "mongodb" else "CouchbaseExecutor"),
-        "from_uri",
+        "from_connection",
         factory,
     )
     metrics, streamed, artifacts = [], [], {}
@@ -217,6 +230,9 @@ def test_benchmark_preserves_results_and_cleanup(tmp_path, monkeypatch, setup, b
     }
     record = json.loads((tmp_path / "load_results.jsonl").read_text())
     assert record["result"]["status"] == ("error" if early_stop else "success")
+    assert factory.call_args.args == (deployments[backend].connection,)
+    assert "username" not in factory.call_args.kwargs
+    assert "password" not in factory.call_args.kwargs
     assert factory.call_args.kwargs["continue_on_error"] is True
     assert factory.call_args.kwargs["concurrency"] == config["clients"]
     assert events[:2] == [("stop", "mongodb"), ("stop", "couchbase")]
@@ -254,7 +270,9 @@ def test_load_dataset_rejects_short_acknowledged_count(monkeypatch, setup):
         lambda *a, **kw: SimpleNamespace(uncertain_writes=False, destinations={"users": 0}),
     )
     with pytest.raises(RuntimeError, match="Incomplete load"):
-        exp.load_dataset(deployments["mongodb"], {"users": [{}]}, on_progress=lambda _: None)
+        exp.load_dataset(
+            deployments["mongodb"].connection, {"users": [{}]}, on_progress=lambda _: None
+        )
 
 
 def test_progress_callback_cannot_prevent_shutdown(tmp_path, monkeypatch, setup):
@@ -287,3 +305,9 @@ def test_old_index_configuration_rejected_before_generation(tmp_path, monkeypatc
             indexes={"mongodb": {"bookings": ["tour_id"]}, "couchbase": {}},
         )
     generator.assert_not_called()
+
+
+@pytest.mark.parametrize("helper", [exp.load_dataset, exp.create_indexes])
+def test_database_helpers_require_connection_settings(helper):
+    with pytest.raises(TypeError, match="connection must be"):
+        helper(SimpleNamespace(backend="mongodb"), {})

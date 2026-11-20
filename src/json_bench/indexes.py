@@ -4,7 +4,7 @@ import math
 import re
 from datetime import timedelta
 
-from bondi import FieldIndex, IndexSet
+from bondi import CouchbaseConnection, FieldIndex, IndexSet, MongoConnection
 from bondi.couchbase import create_couchbase_indexes
 from bondi.mongodb import create_mongo_indexes
 from couchbase.auth import PasswordAuthenticator
@@ -42,11 +42,13 @@ def validate_indexes(indexes: IndexSet, timeout_seconds=300) -> None:
             names.add(index.resolved_name)
 
 
-def ensure_mongodb_indexes(deployment, indexes: IndexSet, *, timeout_seconds=300) -> dict:
+def ensure_mongodb_indexes(
+    connection: MongoConnection, indexes: IndexSet, *, timeout_seconds=300
+) -> dict:
     """Reuse matching baseline indexes and create missing ones through BONDI.
 
     Args:
-        deployment (Deployment): Running MongoDB BONDI Deployment for the travel database.
+        connection: MongoDB connection settings for the running travel database.
         indexes: Collection-keyed IndexSet of shared field definitions.
         timeout_seconds (float): Positive finite timeout per operation.
 
@@ -59,8 +61,15 @@ def ensure_mongodb_indexes(deployment, indexes: IndexSet, *, timeout_seconds=300
     concurrent index changes. Clients are closed on success or failure.
     """
     validate_indexes(indexes, timeout_seconds)
+    if not isinstance(connection, MongoConnection):
+        raise TypeError("connection must be a MongoConnection")
     pending, names = {}, {}
-    with MongoClient(deployment.uri, timeoutMS=timeout_seconds * 1000) as client:
+    credentials = {
+        key: value
+        for key, value in (("username", connection.username), ("password", connection.password))
+        if value is not None
+    }
+    with MongoClient(connection.uri, timeoutMS=timeout_seconds * 1000, **credentials) as client:
         for collection, definitions in indexes.items():
             existing = {
                 index["name"]: index for index in client["travel"][collection].list_indexes()
@@ -90,7 +99,7 @@ def ensure_mongodb_indexes(deployment, indexes: IndexSet, *, timeout_seconds=300
                     raise ValueError(f"Conflicting MongoDB index: {collection}.{name}")
     if any(pending.values()):
         create_mongo_indexes(
-            deployment, indexes=IndexSet(pending), database="travel", timeout=timeout_seconds
+            connection, indexes=IndexSet(pending), database="travel", timeout=timeout_seconds
         )
     return names
 
@@ -111,11 +120,13 @@ def _matching_key(expression, field, direction):
     return expression in allowed and observed_direction == direction
 
 
-def ensure_couchbase_indexes(deployment, indexes: IndexSet, *, timeout_seconds=300) -> dict:
+def ensure_couchbase_indexes(
+    connection: CouchbaseConnection, indexes: IndexSet, *, timeout_seconds=300
+) -> dict:
     """Reuse matching secondary indexes and create missing ones through BONDI.
 
     Args:
-        deployment (Deployment): Running Couchbase BONDI Deployment with travel._default collections.
+        connection: Couchbase connection settings for the running travel._default collections.
         indexes: Collection-keyed IndexSet of shared field definitions.
         timeout_seconds (float): Positive finite timeout per operation, in seconds.
 
@@ -129,11 +140,13 @@ def ensure_couchbase_indexes(deployment, indexes: IndexSet, *, timeout_seconds=3
     retained. Preparation must run without concurrent DDL. Clients always close.
     """
     validate_indexes(indexes, timeout_seconds)
+    if not isinstance(connection, CouchbaseConnection):
+        raise TypeError("connection must be a CouchbaseConnection")
     timeout = timedelta(seconds=timeout_seconds)
     pending, names, reused, deferred = {}, {}, {}, []
     cluster = Cluster(
-        deployment.uri,
-        ClusterOptions(PasswordAuthenticator(deployment.username, deployment.password)),
+        connection.uri,
+        ClusterOptions(PasswordAuthenticator(connection.username, connection.password)),
     )
     try:
         scope = cluster.bucket("travel").scope("_default")
@@ -176,7 +189,7 @@ def ensure_couchbase_indexes(deployment, indexes: IndexSet, *, timeout_seconds=3
             ).execute()
         if any(pending.values()):
             create_couchbase_indexes(
-                deployment,
+                connection,
                 indexes=IndexSet(pending),
                 bucket="travel",
                 scope="_default",

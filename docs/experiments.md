@@ -79,13 +79,14 @@ existing artifact names and formats. A plain Python caller can omit them.
 
 ## Individual steps
 
-`load_dataset(deployment, dataset, *, on_progress=...)` replaces the travel
+`load_dataset(connection, dataset, *, on_progress=...)` replaces the travel
 collections and checks acknowledged write counts. It does not start or stop the
-supplied deployment.
+instance. Pass `deployment.connection`, or construct `MongoConnection` or
+`CouchbaseConnection` for an external instance.
 
-`create_indexes(deployment, indexes, *, on_progress=...)` creates the baseline
+`create_indexes(connection, indexes, *, on_progress=...)` creates the baseline
 indexes and closes its inspection client. Supply a BONDI `IndexSet` for that backend.
 It returns collection names mapped to index names, reusing matching existing indexes
 and delegating missing definitions to BONDI. See [Baseline indexes](indexes.md)
 for configuration, persistence artifacts and resume behavior.
-Both functions require a running deployment and propagate errors.
+Both functions accept connection settings for a running instance and propagate errors.

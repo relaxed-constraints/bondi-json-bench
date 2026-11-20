@@ -22,7 +22,7 @@ def test_q1_matches_corrected_jsonbench(template):
     mongo = translate_mongodb(template, database="travel")
     couch = translate_couchbase(template, bucket="travel")
     assert isinstance(mongo, MongoAggregateQuery)
-    assert mongo.target == MongoCollectionRef("travel", "bookings")
+    assert mongo.collection == MongoCollectionRef("travel", "bookings")
     assert mongo.pipeline == REFERENCE["mongodb_pipeline"]
     assert isinstance(couch, CouchbaseQuery)
     assert couch.statement == REFERENCE["couchbase_statement"]
@@ -173,7 +173,7 @@ def test_q3_matches_corrected_jsonbench():
     mongo = translate_mongodb(template, database="travel")
     couch = translate_couchbase(template, bucket="travel")
     assert mongo.pipeline == Q3["mongodb_pipeline"]
-    assert mongo.target == MongoCollectionRef("travel", "bookings")
+    assert mongo.collection == MongoCollectionRef("travel", "bookings")
     assert couch.statement == Q3["couchbase_statement"]
     assert couch.query_context == "default:`travel`.`_default`"
     assert template == Q3["template"]
@@ -235,7 +235,7 @@ def test_q4_matches_corrected_jsonbench():
     mongo = translate_mongodb(template, database="travel")
     couch = translate_couchbase(template, bucket="travel")
     assert mongo.pipeline == Q4["mongodb_pipeline"]
-    assert mongo.target == MongoCollectionRef("travel", "tours")
+    assert mongo.collection == MongoCollectionRef("travel", "tours")
     assert couch.statement == Q4["couchbase_statement"]
     assert couch.query_context == "default:`travel`.`_default`"
     assert template == Q4["template"]
@@ -304,7 +304,7 @@ def test_q5_matches_corrected_jsonbench():
     mongo = translate_mongodb(template, database="travel")
     couch = translate_couchbase(template, bucket="travel")
     assert mongo.pipeline == Q5["mongodb_pipeline"]
-    assert mongo.target == MongoCollectionRef("travel", "tours")
+    assert mongo.collection == MongoCollectionRef("travel", "tours")
     assert couch.statement == Q5["couchbase_statement"]
     assert couch.query_context == "default:`travel`.`_default`"
     mongo.pipeline[0]["$lookup"]["foreignField"] = "changed"
@@ -380,7 +380,7 @@ def test_q6_matches_corrected_jsonbench():
     mongo = translate_mongodb(template, database="travel")
     couch = translate_couchbase(template, bucket="travel")
     assert mongo.pipeline == Q6["mongodb_pipeline"]
-    assert mongo.target == MongoCollectionRef("travel", "bookings")
+    assert mongo.collection == MongoCollectionRef("travel", "bookings")
     assert couch.statement == Q6["couchbase_statement"]
     assert couch.query_context == "default:`travel`.`_default`"
     assert template == Q6["template"]
@@ -417,7 +417,7 @@ def test_q7_matches_corrected_jsonbench():
     mongo = translate_mongodb(template, database="travel")
     couch = translate_couchbase(template, bucket="travel")
     assert mongo.pipeline == Q7["mongodb_pipeline"]
-    assert mongo.target == MongoCollectionRef("travel", "tours")
+    assert mongo.collection == MongoCollectionRef("travel", "tours")
     assert couch.statement == Q7["couchbase_statement"]
     assert couch.query_context == "default:`travel`.`_default`"
     assert template == Q7["template"]

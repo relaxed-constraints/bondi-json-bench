@@ -47,14 +47,16 @@ names after successful creation for each backend.
 ```python
 from json_bench.indexes import ensure_mongodb_indexes, ensure_couchbase_indexes
 
-names = ensure_mongodb_indexes(mongo_deployment, indexes)
+names = ensure_mongodb_indexes(mongo_deployment.connection, indexes)
 names = ensure_couchbase_indexes(
-    couchbase_deployment, IndexSet.from_dict(config["couchbase"]), timeout_seconds=300
+    couchbase_deployment.connection, IndexSet.from_dict(config["couchbase"]), timeout_seconds=300
 )
 ```
 
-Supply a running BONDI deployment. These helpers inspect all requested indexes,
-reuse matching names, and delegate missing definitions to BONDI's backend
+Supply `deployment.connection` for a managed instance, or a `MongoConnection` /
+`CouchbaseConnection` for an external instance. The database must already be running.
+These helpers inspect all requested indexes, reuse matching names, and delegate
+missing definitions to BONDI's backend
 `create_mongo_indexes()` or `create_couchbase_indexes()` function. They own and close their inspection clients.
 MongoDB uses database `travel`; Couchbase uses bucket `travel`, scope `_default`.
 

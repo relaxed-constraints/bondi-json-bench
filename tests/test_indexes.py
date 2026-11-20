@@ -4,7 +4,7 @@ from types import SimpleNamespace as S
 from unittest.mock import MagicMock
 
 import pytest
-from bondi import IndexSet
+from bondi import CouchbaseConnection, IndexSet, MongoConnection
 
 from json_bench import indexes as mod
 
@@ -28,17 +28,19 @@ def spec():
     return IndexSet.from_dict({"bookings": [{"fields": ["tour_id"], "name": "baseline"}]})
 
 
-def deployment():
-    return S(uri="unused", username="user", password="password")
+def connection(backend="mongodb"):
+    if backend == "mongodb":
+        return MongoConnection("mongodb://unused", username="user", password="password")
+    return CouchbaseConnection("couchbase://unused", "user", "password")
 
 
 def test_mongo_create_and_repeat(clients):
     db, _, creators, _ = clients
-    assert mod.ensure_mongodb_indexes(deployment(), spec()) == {"bookings": ["baseline"]}
+    assert mod.ensure_mongodb_indexes(connection(), spec()) == {"bookings": ["baseline"]}
     assert creators[0].call_args.kwargs["indexes"].to_dict() == spec().to_dict()
     creators[0].reset_mock()
     db["bookings"].list_indexes.return_value = [{"name": "baseline", "key": {"tour_id": 1}}]
-    mod.ensure_mongodb_indexes(deployment(), spec())
+    mod.ensure_mongodb_indexes(connection(), spec())
     creators[0].assert_not_called()
 
 
@@ -59,7 +61,7 @@ def test_mongo_conflict(clients, extra):
         {"name": "baseline", "key": {"tour_id": 1}, **extra}
     ]
     with pytest.raises(ValueError, match="Conflicting"):
-        mod.ensure_mongodb_indexes(deployment(), spec())
+        mod.ensure_mongodb_indexes(connection(), spec())
     creators[0].assert_not_called()
 
 
@@ -81,11 +83,11 @@ def existing(**changes):
 
 def test_couchbase_create_repeat_and_wait(clients):
     _, manager, creators, cluster = clients
-    mod.ensure_couchbase_indexes(deployment(), spec())
+    mod.ensure_couchbase_indexes(connection("couchbase"), spec())
     assert creators[1].call_args.kwargs["indexes"].to_dict() == spec().to_dict()
     creators[1].reset_mock()
     manager.get_all_indexes.return_value = [existing()]
-    mod.ensure_couchbase_indexes(deployment(), spec())
+    mod.ensure_couchbase_indexes(connection("couchbase"), spec())
     creators[1].assert_not_called()
     assert manager.watch_indexes.call_args.args == (["baseline"],)
     assert cluster.return_value.close.call_count == 2
@@ -105,7 +107,7 @@ def test_couchbase_conflict(clients, changes):
     _, manager, creators, cluster = clients
     manager.get_all_indexes.return_value = [existing(**changes)]
     with pytest.raises(ValueError, match="Conflicting"):
-        mod.ensure_couchbase_indexes(deployment(), spec())
+        mod.ensure_couchbase_indexes(connection("couchbase"), spec())
     creators[1].assert_not_called()
     cluster.return_value.close.assert_called_once()
 
@@ -115,7 +117,7 @@ def test_deferred_resume_and_timeout(clients):
     manager.get_all_indexes.return_value = [existing(state="deferred")]
     manager.watch_indexes.side_effect = TimeoutError("not ready")
     with pytest.raises(TimeoutError):
-        mod.ensure_couchbase_indexes(deployment(), spec())
+        mod.ensure_couchbase_indexes(connection("couchbase"), spec())
     cluster.return_value.query.return_value.execute.assert_called_once()
     cluster.return_value.close.assert_called_once()
 
@@ -123,7 +125,10 @@ def test_deferred_resume_and_timeout(clients):
 @pytest.mark.parametrize("helper", [mod.ensure_mongodb_indexes, mod.ensure_couchbase_indexes])
 def test_old_mapping_rejected_before_connection(clients, helper):
     with pytest.raises(TypeError, match="IndexSet"):
-        helper(deployment(), {"bookings": ["tour_id"]})
+        helper(
+            connection("couchbase" if helper is mod.ensure_couchbase_indexes else "mongodb"),
+            {"bookings": ["tour_id"]},
+        )
     assert not clients[2][0].called and not clients[2][1].called
 
 
@@ -138,7 +143,7 @@ def test_partial_batch_resume(clients):
             ]
         }
     )
-    mod.ensure_mongodb_indexes(deployment(), indexes)
+    mod.ensure_mongodb_indexes(connection(), indexes)
     pending = creators[0].call_args.kwargs["indexes"]
     assert [index.name for index in pending["bookings"]] == ["second"]
 
@@ -156,5 +161,44 @@ def test_later_collection_conflict_prevents_all_creation(clients):
         }
     )
     with pytest.raises(ValueError, match="Conflicting"):
-        mod.ensure_mongodb_indexes(deployment(), indexes)
+        mod.ensure_mongodb_indexes(connection(), indexes)
     creators[0].assert_not_called()
+
+
+def test_mongo_connection_credentials_and_settings_forwarded(clients):
+    settings = MongoConnection(
+        "mongodb://uri-user:uri-pass@unused/?authSource=admin",
+        username="researcher",
+        password="p@ss:/%",
+    )
+    mod.ensure_mongodb_indexes(settings, spec())
+    mod.MongoClient.assert_called_once_with(
+        settings.uri, timeoutMS=300000, username="researcher", password="p@ss:/%"
+    )
+    assert clients[2][0].call_args.args[0] is settings
+
+
+def test_couchbase_connection_credentials_and_settings_forwarded(clients, monkeypatch):
+    authenticator = MagicMock()
+    monkeypatch.setattr(mod, "PasswordAuthenticator", authenticator)
+    settings = CouchbaseConnection("couchbases://unused", "researcher", "p@ss:/%")
+    mod.ensure_couchbase_indexes(settings, spec())
+    authenticator.assert_called_once_with("researcher", "p@ss:/%")
+    assert clients[3].call_args.args[0] == settings.uri
+    assert clients[2][1].call_args.args[0] is settings
+
+
+@pytest.mark.parametrize(
+    "helper,settings",
+    [
+        (mod.ensure_mongodb_indexes, connection("couchbase")),
+        (mod.ensure_couchbase_indexes, connection("mongodb")),
+        (mod.ensure_mongodb_indexes, "mongodb://unused"),
+        (mod.ensure_couchbase_indexes, S(uri="couchbase://unused")),
+    ],
+)
+def test_wrong_connection_rejected_before_inspection(clients, helper, settings):
+    with pytest.raises(TypeError, match="connection must be"):
+        helper(settings, spec())
+    mod.MongoClient.assert_not_called()
+    clients[3].assert_not_called()

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Upgrade to BONDI `>=0.4.0,<0.5.0`. Use connection settings for dataset loading,
+  resumable index helpers and executor creation, and `collection=` for MongoDB
+  query construction. Update experiment orchestration, docs, the walkthrough
+  notebook and both-backend tests without changing saved manifest formats.
+
 - Upgrade relcon-docs to 0.1.7 and apply shared Markdown defaults, including SmartSymbols arrows.
 
 - Inherit shared image lightboxes and allow relcon-docs updates within

@@ -3,11 +3,12 @@
 import fcntl
 import json
 import tempfile
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import asdict
 from pathlib import Path
 
-from bondi import IndexSet
+from bondi import CouchbaseConnection, IndexSet, MongoConnection
 from bondi.couchbase import CouchbaseCollectionRef, CouchbaseExecutor
 from bondi.data import load_documents
 from bondi.deployment import deploy_couchbase, deploy_mongodb, get_deployment
@@ -39,13 +40,31 @@ def _artifact_saver(output_dir, on_artifact):
     return save
 
 
-def load_dataset(deployment, dataset, *, on_progress=_print_progress):
+def _connection_backend(connection: MongoConnection | CouchbaseConnection) -> str:
+    if isinstance(connection, MongoConnection):
+        return "mongodb"
+    if isinstance(connection, CouchbaseConnection):
+        return "couchbase"
+    raise TypeError("connection must be a MongoConnection or CouchbaseConnection")
+
+
+def load_dataset(
+    connection: MongoConnection | CouchbaseConnection,
+    dataset: dict[str, list[dict]],
+    *,
+    on_progress: Callable[[str], None] = _print_progress,
+) -> None:
     """Replace the four travel collections and check acknowledged write counts.
 
-    The caller owns deployment startup and shutdown. Partial loads are not rolled
+    Args:
+        connection: Settings for the running MongoDB or Couchbase instance.
+        dataset: Collection names mapped to document lists.
+        on_progress: Callback receiving progress strings.
+
+    The caller owns database startup and shutdown. Partial loads are not rolled
     back. Raise RuntimeError if writes are uncertain or counts do not match.
     """
-    backend = deployment.backend
+    backend = _connection_backend(connection)
     for collection, documents in dataset.items():
         ref = (
             MongoCollectionRef("travel", collection)
@@ -53,23 +72,34 @@ def load_dataset(deployment, dataset, *, on_progress=_print_progress):
             else CouchbaseCollectionRef("travel", "_default", collection)
         )
         on_progress(f"[{backend}] Loading {len(documents):,} documents into travel.{collection}...")
-        result = load_documents(documents, target=deployment, collection=ref, mode="replace")
+        result = load_documents(documents, connection=connection, collection=ref, mode="replace")
         if result.uncertain_writes or sum(result.destinations.values()) != len(documents):
             raise RuntimeError(f"Incomplete load: {backend}.{collection}")
         on_progress(f"[{backend}] Loaded travel.{collection}.")
 
 
-def create_indexes(deployment, indexes, *, on_progress=_print_progress):
+def create_indexes(
+    connection: MongoConnection | CouchbaseConnection,
+    indexes: IndexSet,
+    *,
+    on_progress: Callable[[str], None] = _print_progress,
+) -> dict[str, list[str]]:
     """Create the supplied baseline indexes in travel and close native clients.
 
-    indexes is a BONDI IndexSet. The deployment must already be running.
+    Args:
+        connection: Settings for the running MongoDB or Couchbase instance.
+        indexes: BONDI IndexSet containing the baseline for the connection's backend.
+        on_progress: Callback receiving progress strings.
+
     Matching indexes are reused; conflicting definitions raise before creation.
-    Returns collection names mapped to the requested index names.
+
+    Returns:
+        Collection names mapped to the requested index names.
     """
-    backend = deployment.backend
+    backend = _connection_backend(connection)
     on_progress(f"[{backend}] Creating baseline indexes...")
     helper = ensure_mongodb_indexes if backend == "mongodb" else ensure_couchbase_indexes
-    names = helper(deployment, indexes)
+    names = helper(connection, indexes)
     on_progress(f"[{backend}] Baseline indexes ready.")
     return names
 
@@ -174,8 +204,9 @@ def prepare_databases(
                 on_progress(f"[{backend}] Deployment ready.")
                 manifest["deployments"][backend]["image"] = deployment.image
 
-                load_dataset(deployment, dataset, on_progress=on_progress)
-                names = create_indexes(deployment, index_sets[backend], on_progress=on_progress)
+                connection = deployment.connection
+                load_dataset(connection, dataset, on_progress=on_progress)
+                names = create_indexes(connection, index_sets[backend], on_progress=on_progress)
                 save_artifact(names, f"index_names.{backend}.json")
             finally:
                 # Startup can fail after BONDI saves the deployment. Stop that too.
@@ -315,17 +346,8 @@ def run_benchmark(
             on_progress(f"Starting {deployment.name}...")
             deployment.start(timeout=params["deployment"]["startup_timeout_seconds"])
             executor_type = MongoExecutor if backend == "mongodb" else CouchbaseExecutor
-            credentials = (
-                {}
-                if backend == "mongodb"
-                else {
-                    "username": deployment.username,
-                    "password": deployment.password,
-                }
-            )
-            with executor_type.from_uri(
-                deployment.uri,
-                **credentials,
+            with executor_type.from_connection(
+                deployment.connection,
                 concurrency=params["clients"],
                 continue_on_error=True,
                 **params["executor"],

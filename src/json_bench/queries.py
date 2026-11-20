@@ -298,7 +298,7 @@ def translate_mongodb(template: dict, *, database: str) -> MongoAggregateQuery:
         pipeline.append({"$limit": limit})
 
     return MongoAggregateQuery(
-        target=MongoCollectionRef(database, primary),
+        collection=MongoCollectionRef(database, primary),
         pipeline=pipeline,
     )
 

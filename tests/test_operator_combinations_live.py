@@ -77,11 +77,13 @@ def test_operator_combinations_live():
         )
         for collection, documents in DATA.items():
             load_documents(
-                documents, target=mongo, collection=MongoCollectionRef("travel", collection)
+                documents,
+                connection=mongo.connection,
+                collection=MongoCollectionRef("travel", collection),
             )
             load_documents(
                 documents,
-                target=couch,
+                connection=couch.connection,
                 collection=CouchbaseCollectionRef("travel", "_default", collection),
             )
         cases = [
@@ -92,10 +94,8 @@ def test_operator_combinations_live():
             (f"seed23-{i}", template, None) for i, template in enumerate(generated_templates())
         ]
         with (
-            MongoExecutor.from_uri(mongo.uri, timeout_seconds=60) as m,
-            CouchbaseExecutor.from_uri(
-                couch.uri, username=couch.username, password=couch.password, timeout_seconds=60
-            ) as c,
+            MongoExecutor.from_connection(mongo.connection, timeout_seconds=60) as m,
+            CouchbaseExecutor.from_connection(couch.connection, timeout_seconds=60) as c,
         ):
             for statement in [
                 "CREATE PRIMARY INDEX ON `tours`;",
