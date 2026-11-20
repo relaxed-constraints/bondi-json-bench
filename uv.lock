@@ -307,7 +307,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bondi", extras = ["couchbase"], specifier = "==0.3.8" },
+    { name = "bondi", extras = ["couchbase"], specifier = ">=0.3,<0.4" },
     { name = "click", specifier = ">=8.1,<9" },
     { name = "faker", specifier = "==38.3.0" },
     { name = "huggingface-hub", specifier = ">=0.30,<2" },
